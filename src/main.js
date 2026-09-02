@@ -328,8 +328,23 @@ const capture = async (r, me) => {
     log(`run ${r.id}: named a user but the login cookies are not in the jar yet`);
     return;
   }
-  const xbc = await r.identity.readXbc().catch(() => null);
+  // The device token, retried. The API refuses an import without one — a seat that adopts a jar
+  // with no token clears its own and lets OnlyFans see an unrecognised device — and OnlyFans writes
+  // `bcTokenSha` around sign-in rather than exactly at it, so one read a moment too early would
+  // cost her a whole round trip for nothing.
+  let xbc = null;
+  for (let attempt = 0; attempt < 4 && !xbc; attempt++) {
+    if (attempt) await new Promise((resolve) => setTimeout(resolve, 500));
+    if (stale(r) || !r.identity) return;
+    xbc = await r.identity.readXbc().catch(() => null);
+  }
   if (stale(r)) return;
+  if (!xbc) {
+    // Left uncaptured so the next `/users/me` tries again, rather than spending the pass on a jar
+    // the API will refuse.
+    log(`run ${r.id}: signed in but the device token is not in storage yet — waiting`);
+    return;
+  }
   const payload = buildSessionPayload(cookies, xbc);
   r.captured = true;
   setState({ phase: 'captured', username: r.account?.username ?? null });
