@@ -42,7 +42,19 @@ jobs:
       # conditional, which was a no-op dressed up as the thing that turned notarization on.
       # Either credential set below works; the API key is the one Apple recommends.
       - name: Build, sign, notarize and publish the DMG
-        run: npx electron-builder --mac --publish always
+        # AN UNSET SECRET IS AN EMPTY STRING, NOT AN ABSENT ONE. `CSC_LINK: ${{ secrets.CSC_LINK }}`
+        # with no certificate configured hands electron-builder `CSC_LINK=""`, which it reads as a
+        # certificate PATH, resolves against the project directory, and then reports as
+        # `⨯ <project dir> not a file` — a message that names neither signing nor the variable.
+        # Setting CSC_IDENTITY_AUTO_DISCOVERY=false does not help, because the empty path is already
+        # a configured certificate as far as it is concerned. The variables have to be UNSET.
+        run: |
+          if [ -z "${CSC_LINK:-}" ]; then
+            echo "No Developer ID certificate configured — building an UNSIGNED DMG."
+            unset CSC_LINK CSC_KEY_PASSWORD
+            export CSC_IDENTITY_AUTO_DISCOVERY=false
+          fi
+          npx electron-builder --mac --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # WITHOUT A CERTIFICATE, SIGNING MUST BE TURNED OFF EXPLICITLY. Left on, electron-builder
@@ -50,7 +62,6 @@ jobs:
           # "<project dir> not a file". Auto-discovery is enabled only when a cert is actually
           # present, so this same workflow signs the moment CSC_LINK is set and stays buildable
           # until then.
-          CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.CSC_LINK != '' }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           # Preferred: an App Store Connect API key.
