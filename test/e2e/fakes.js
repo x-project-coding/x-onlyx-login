@@ -190,10 +190,42 @@ export const startFakeTunnel = async ({ onlyfansPort, expectToken }) => {
  * `identity` overrides the served identity field-by-field, so one test can drive the SEAT shape and
  * the next the NATIVE one against the same app. The default is the seat shape this app was born
  * wearing.
+ *
+ * THE VERDICT DIALS. `/connect-app/status` answers with a `ConnectState`, and the real one
+ * (connect-app.service.ts) has FOUR values, not three: `awaiting_session | verifying | connected |
+ * failed`. For a long time this fake could only ever work its way to `connected`, so the app's
+ * "OnlyX could not use this sign-in" screen and its expired-pass screen were dead code in every
+ * end-to-end run, and an app that painted success on its own count of polls was indistinguishable
+ * from one that waited for the seat.
+ *
+ *   connectAfter        the status poll from which `connected` is answered. `Infinity` is a cloud
+ *                       that NEVER concedes — the only setting under which "the app waited for the
+ *                       seat" and "the app counted to four" tell different stories.
+ *   failAfter           the poll from which the seat's REFUSAL is answered: `state: 'failed'` with
+ *                       `statusReason`. Outranks connectAfter. Needs an import, exactly as the
+ *                       server does (`connectState` is `awaiting_session` until the pass is spent).
+ *   statusReason        the prose the failed answer carries. The server stores a sentence written
+ *                       for a human ("signed out of OnlyFans"), not a code, and the app puts it in
+ *                       front of the creator (messages.js), so a test that wants to prove it
+ *                       travelled has to send a real one.
+ *   unauthorizedAfter   the poll from which the pass is answered 401 EVEN WITH THE CORRECT BEARER —
+ *                       a pass that ran out mid-verify. Without it the only 401 here is the one a
+ *                       wrong bearer earns, which the app never sends and so never sees.
  */
-export const startFakeApi = async ({ tunnelPort = null, userAgent, claim, connectAfter = 2, identity = {} }) => {
+export const startFakeApi = async ({
+  tunnelPort = null,
+  userAgent,
+  claim,
+  connectAfter = 2,
+  identity = {},
+  failAfter = Infinity,
+  statusReason = null,
+  unauthorizedAfter = Infinity,
+}) => {
   const token = `sess-token-${Math.random().toString(36).slice(2)}`;
-  const record = { open: 0, imports: [], statusHits: 0 };
+  // `connectedFrom` is the poll number at which this fake FIRST answered `connected`. The app
+  // must not have shown its success screen before it — see the gate assertions in app.test.js.
+  const record = { open: 0, imports: [], statusHits: 0, connectedFrom: null, failedFrom: null, unauthorizedFrom: null };
   const readBody = (req) =>
     new Promise((resolve) => {
       let b = '';
@@ -245,12 +277,23 @@ export const startFakeApi = async ({ tunnelPort = null, userAgent, claim, connec
     if (url.pathname === '/connect-app/status' && req.method === 'GET') {
       if (bearer !== token) return json(res, 401, { error: 'pass_invalid' });
       record.statusHits += 1;
-      const connected = record.imports.length > 0 && record.statusHits >= connectAfter;
+      // THE PASS RAN OUT, on a bearer that is perfectly correct — which is the only way the app can
+      // ever meet this answer, since it holds one token and sends it faithfully.
+      if (record.statusHits >= unauthorizedAfter) {
+        if (record.unauthorizedFrom === null) record.unauthorizedFrom = record.statusHits;
+        return json(res, 401, { error: 'pass_invalid' });
+      }
+      const failed = record.imports.length > 0 && record.statusHits >= failAfter;
+      if (failed && record.failedFrom === null) record.failedFrom = record.statusHits;
+      // A refusal beats a concession: a test that sets both is asking for the refusal.
+      const connected = !failed && record.imports.length > 0 && record.statusHits >= connectAfter;
+      if (connected && record.connectedFrom === null) record.connectedFrom = record.statusHits;
       return json(res, 200, {
-        state: connected ? 'connected' : record.imports.length ? 'verifying' : 'awaiting_session',
+        state: failed ? 'failed' : connected ? 'connected' : record.imports.length ? 'verifying' : 'awaiting_session',
         username: 'creatorx',
-        accountStatus: connected ? 'connected' : 'connecting',
-        statusReason: null,
+        accountStatus: failed ? 'reconnect_needed' : connected ? 'connected' : 'connecting',
+        // Null while nothing is wrong, exactly as the server answers for a healthy account.
+        statusReason: failed ? statusReason : null,
         importedAt: record.imports[0] ? new Date().toISOString() : null,
         expiresAt: new Date(Date.now() + 45 * 60_000).toISOString(),
       });
