@@ -45,6 +45,12 @@ jobs:
         run: npx electron-builder --mac --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # WITHOUT A CERTIFICATE, SIGNING MUST BE TURNED OFF EXPLICITLY. Left on, electron-builder
+          # still enters its signing path, finds no identity, and dies with the useless
+          # "<project dir> not a file". Auto-discovery is enabled only when a cert is actually
+          # present, so this same workflow signs the moment CSC_LINK is set and stays buildable
+          # until then.
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.CSC_LINK != '' }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           # Preferred: an App Store Connect API key.
