@@ -5,9 +5,15 @@
  * The flow, end to end:
  *
  *   link opened  ->  POST /connect-app/open        the claim becomes a 45-minute pass: an identity
- *                                                  to present, a tunnel to use, a token to hold
- *                ->  loopback forwarder (tunnel.js) every byte of the sign-in browser rides the
- *                                                  account's own proxy, via the OnlyX API
+ *                                                  to present, a token to hold — and the server's
+ *                                                  decision on where the traffic flows: a tunnel,
+ *                                                  or `tunnel: null`
+ *                ->  loopback forwarder (tunnel.js) ONLY when a tunnel was offered: every byte of
+ *                                                  the sign-in browser rides the account's own
+ *                                                  proxy, via the OnlyX API. With `tunnel: null`
+ *                                                  nothing is bound and the sign-in runs over the
+ *                                                  machine's own network — see startConnect for
+ *                                                  why that is the shipped default
  *                ->  sign-in view                  an in-memory browser wearing the seat's identity
  *                                                  (identity.js); the creator signs in, passes the
  *                                                  selfie check with her own camera
@@ -185,24 +191,48 @@ const startConnect = async (claim) => {
   r.expiresAt = opened.expiresAt;
   log(`run ${r.id}: pass opened for @${opened.account?.username} (${opened.identity?.profile} profile)`);
 
-  try {
-    r.forwarder = await startForwarder({
-      tunnelUrl: opened.tunnel.url,
-      sessionToken: opened.sessionToken,
-      onFatal: (reason) => fail(r, messageForTunnel(reason)),
-      log: (line) => log(`tunnel: ${line}`),
-    });
-  } catch (err) {
-    return fail(r, messageForTunnel('proxy_error'), err);
+  // THE SERVER DECIDES WHERE THE SIGN-IN'S TRAFFIC FLOWS (XOF_CONNECT_APP_TUNNEL on x-onlyfans),
+  // and says so by offering a tunnel or `tunnel: null`. A tunnel = every stream rides the
+  // account's residential proxy through the forwarder, exactly as before. No tunnel = the sign-in
+  // runs over THIS machine's own network: OnlyFans' identity vendor compares this browser's
+  // network with the phone that scans its QR ("please make sure both devices are connected to the
+  // same network", hit in production 2026-09-02), and behind the proxy the two can never match.
+  // The session is then created on the creator's own IP and later used by the seat from the
+  // account's proxy — that IP jump is a KNOWN, ACCEPTED sign-out risk, chosen by the operator with
+  // eyes open. Do not "fix" it here by requiring a tunnel again; and do not decide the mode here
+  // either — the server owns the switch precisely so installed copies (which unsigned mac builds
+  // cannot auto-update) follow a container env change instead of a reinstall.
+  const tunnelUrl = opened.tunnel?.url ?? null;
+  if (tunnelUrl) {
+    try {
+      r.forwarder = await startForwarder({
+        tunnelUrl,
+        sessionToken: opened.sessionToken,
+        onFatal: (reason) => fail(r, messageForTunnel(reason)),
+        log: (line) => log(`tunnel: ${line}`),
+      });
+    } catch (err) {
+      return fail(r, messageForTunnel('proxy_error'), err);
+    }
+    if (r !== run) return closeBrowser(r);
+  } else {
+    log(`run ${r.id}: no tunnel offered — signing in over this machine's own network`);
   }
-  if (r !== run) return closeBrowser(r);
 
   // A partition with no `persist:` prefix is in memory: cookies, storage and cache live exactly as
   // long as the session object, and the session object as long as the run.
   const ses = session.fromPartition(`onlyx-login-${r.id}-${Date.now()}`);
   r.session = ses;
-  await ses.setProxy(r.forwarder.proxyConfig);
-  if (r !== run) return closeBrowser(r);
+  if (r.forwarder) {
+    await ses.setProxy(r.forwarder.proxyConfig);
+    if (r !== run) return closeBrowser(r);
+  }
+  // With no tunnel, setProxy is deliberately NOT called at all: no forwarder, no loopback
+  // listener, no per-run credential — nothing of ours between her browser and OnlyFans. The
+  // session keeps the machine's normal network path (a system proxy included, if her machine has
+  // one), which is the same route her everyday browser takes and therefore the network the
+  // vendor's phone check is comparing against. Forcing mode:'direct' here would instead strand
+  // any creator whose machine can only reach the internet through a configured proxy.
   ses.setUserAgent(opened.identity.userAgent, opened.identity.acceptLanguage ?? 'en-US,en;q=0.9');
   // Raised to her screen rather than swallowed: the sign-in window stays open, because the rest of
   // the sign-in still works and only the selfie step is blocked.
@@ -425,8 +455,8 @@ const captureInner = async (r, me) => {
   if (stale(r)) return;
   log(`run ${r.id}: session imported at ${result?.importedAt}; seat ${result?.seat ? `${result.seat.workerId}#${result.seat.seatIndex}` : 'pending'}`);
 
-  // The browser has done its job. Closing it also closes the tunnel, which the API expects: a
-  // consumed pass opens no further streams.
+  // The browser has done its job. Closing it also closes the tunnel when one was in use, which
+  // the API expects: a consumed pass opens no further streams.
   const token = r.token;
   await closeBrowser(r);
   if (r !== run) return;

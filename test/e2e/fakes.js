@@ -11,6 +11,10 @@
  * onlyfans.com:443, and this stands in for it. TLS runs end to end between the app's sign-in browser
  * and the fake site; the app trusts the self-signed cert only because the test passes its
  * fingerprint in ONLYX_TEST_CERT_SHA256.
+ *
+ * The fake API can also answer with `tunnel: null` (tunnelPort: null) — the production-default
+ * "sign in over your own network" shape. There is then no tunnel to redirect the browser, so that
+ * test pins onlyfans.com to the fake with Chromium's --host-resolver-rules instead (no-tunnel.test.js).
  */
 
 import http from 'node:http';
@@ -89,7 +93,11 @@ export const startFakeTunnel = async ({ onlyfansPort, expectToken }) => {
   return { port, seen, close: () => new Promise((r) => server.close(r)) };
 };
 
-export const startFakeApi = async ({ tunnelPort, userAgent, claim, connectAfter = 2 }) => {
+/**
+ * `tunnelPort: null` answers the open with `tunnel: null` — the server's "sign in over your own
+ * network" shape (XOF_CONNECT_APP_TUNNEL off, the production default). A port keeps the old shape.
+ */
+export const startFakeApi = async ({ tunnelPort = null, userAgent, claim, connectAfter = 2 }) => {
   const token = `sess-token-${Math.random().toString(36).slice(2)}`;
   const record = { open: 0, imports: [], statusHits: 0 };
   const readBody = (req) =>
@@ -121,7 +129,7 @@ export const startFakeApi = async ({ tunnelPort, userAgent, claim, connectAfter 
           initScript: "try{Object.defineProperty(Navigator.prototype,'platform',{get:()=>'MacIntel',configurable:true});}catch(e){}",
           timezone: null,
         },
-        tunnel: { url: `ws://127.0.0.1:${tunnelPort}/connect-app/tunnel` },
+        tunnel: tunnelPort ? { url: `ws://127.0.0.1:${tunnelPort}/connect-app/tunnel` } : null,
       });
     }
     if (url.pathname === '/connect-app/session' && req.method === 'POST') {

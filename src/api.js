@@ -1,7 +1,9 @@
 /**
  * The three calls the app makes, and the one thing it holds: the pass's session token.
  *
- *   open(claim)                spend the link; get the identity to present, the tunnel, the token
+ *   open(claim)                spend the link; get the identity to present, the token, and the
+ *                              server's routing decision: a tunnel to ride, or `tunnel: null` for
+ *                              a sign-in over this machine's own network
  *   importSession(payload)     hand over the signed-in jar
  *   status()                   what the seat made of it
  *
@@ -66,7 +68,7 @@ export class OnlyxApi {
     return json;
   }
 
-  /** Spend a claim. Returns the opened pass: token, expiry, account, identity, tunnel. */
+  /** Spend a claim. Returns the opened pass: token, expiry, account, identity, tunnel (or null). */
   open(claim) {
     return this.#call('POST', '/connect-app/open', { body: { claim, ...this.#meta } });
   }
