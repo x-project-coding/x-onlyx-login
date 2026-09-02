@@ -70,11 +70,24 @@
   #bar .clock.late { color: #fbbf24; }
 
   /* Full mode: the app on its own. */
-  #full { display: none; height: 100%; align-items: center; justify-content: center; padding: 32px; }
+  #full { display: none; height: 100%; padding: 32px; overflow-y: auto; }
   body[data-mode="full"] #full { display: flex; }
-  .card { width: min(520px, 100%); text-align: center; }
+  /* Centred by the card's own auto margins, not align/justify on #full: flex-centring a card
+     taller than the window (the Help list on a small screen) pushes the overflow past BOTH edges,
+     where body's overflow:hidden made it unreachable — Back button included. Auto margins centre
+     every short card identically and let a tall one start at the top and scroll. */
+  .card { width: min(520px, 100%); margin: auto; text-align: center; }
   .card .brand { margin-bottom: 30px; font-size: 17px; }
-  .icon { width: 64px; height: 64px; margin: 0 auto 22px; border-radius: 50%; display: grid; place-items: center; font-size: 30px; }
+  /* The icon slot's geometry lives on the ID — which every state keeps — not on a class the
+     renderer swaps: ui.js replaces the element's whole className per state, and v1.0.1's idle
+     screen set `mark lg` without `.icon`, lost the centring margin that only `.icon` carried, and
+     shipped the ring flush against the card's left edge. The ID outranks any class combination a
+     future icon kind sets, so forgetting `.icon` can no longer move the slot. */
+  #full-icon { width: 64px; height: 64px; margin: 0 auto 22px; }
+  /* Explicit, because .icon's display:grid outranks the UA's [hidden] rule (author origin wins at
+     equal specificity) — without this the help panel's "hidden" slot would still hold 86px. */
+  #full-icon[hidden] { display: none; }
+  .icon { border-radius: 50%; display: grid; place-items: center; font-size: 30px; }
   .icon.spin { border: 3px solid var(--line); border-top-color: var(--brand); animation: spin 1s linear infinite; }
   .icon.ok { background: rgba(34,197,94,.14); color: var(--ok); }
   .icon.bad { background: rgba(248,113,113,.14); color: var(--bad); }

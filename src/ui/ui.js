@@ -18,8 +18,11 @@
     body.dataset.mode = 'full';
     const iconEl = $('full-icon');
     // 'mark' is the OnlyX ring itself — used on the idle screen, where the product is what to show.
+    // Only the className changes per state; the slot's size and centring live on #full-icon in the
+    // CSS, so no kind can lose them the way v1.0.1's `mark lg` lost `.icon`'s margin.
     iconEl.className = icon.kind === 'mark' ? 'mark lg' : `icon ${icon.kind}`;
     iconEl.textContent = icon.kind === 'mark' ? '' : (icon.glyph ?? '');
+    iconEl.hidden = false;
     $('full-title').textContent = title;
     $('full-text').textContent = text ?? '';
     $('full-detail').textContent = detail ?? '';
@@ -48,6 +51,11 @@
    */
   const HELP = [
     ['Nothing happened when I clicked my link', 'Open OnlyX Login once from your Applications folder (Mac) or Start menu (Windows), then click the link again. Your browser will ask whether to open OnlyX Login — choose Open.'],
+    // True while releases are unsigned. Two facts here save a creator from advice the internet
+    // still gives: Sequoia removed the right-click→Open escape hatch, and "Open Anyway" is only
+    // offered for about an hour after a blocked attempt — after that the button simply is not
+    // there, which reads as "my Mac has no such setting" unless she knows to relaunch the app.
+    ['My computer shows a warning the first time I open the app', 'That is expected for now — this version is not yet registered with Apple or Microsoft, so new computers play it safe. Windows: click “More info”, then “Run anyway”. Mac: close the warning, open System Settings → Privacy & Security, scroll down and click “Open Anyway” (right-click → Open does not work on newer Macs). The button appears for about an hour after the warning — if it is missing, open the app once more and look again.'],
     ['My link says it has expired', 'Links work once, and for 15 minutes. Ask your manager to send a new one — it takes them a second.'],
     ['I signed in to the wrong account', 'Sign out inside the sign-in window and sign in again with the account your manager is expecting. You do not need a new link.'],
     ['OnlyFans is asking for a selfie or a video check', 'That is normal. Allow the camera when your computer asks, and hold your face up to it as OnlyFans instructs. Nothing is recorded by OnlyX.'],
@@ -69,6 +77,10 @@
     const iconEl = $('full-icon');
     iconEl.className = 'icon';
     iconEl.textContent = '';
+    // No glyph here — hidden, not left as an invisible 86px spacer: help is the tallest screen in
+    // the app, and that dead band is the difference between the panel fitting the default window
+    // and every reader getting a scrollbar. renderFull un-hides it for every real icon.
+    iconEl.hidden = true;
     $('full-title').textContent = 'Help';
     $('full-text').textContent = '';
     $('full-detail').textContent = '';
@@ -173,13 +185,17 @@
         });
       case 'idle':
       default:
-        // The screen a creator meets when she opens the app from its icon, with no link. It must
-        // read as "ready and waiting" — a still page with an imperative title reads as an error,
-        // as if the app had failed to do something. Waiting is the state; the link is the next step.
+        // The screen a creator meets when she opens the app from its icon, with no link — at a
+        // desktop, quite possibly wondering why an app with nothing in it just opened. It must
+        // read as "ready and waiting" — a still page with an imperative title reads as an error —
+        // and it must hand her the next step, because the link is NOT in this window: it is in
+        // the chat where her manager sent it. Saying "installed is enough" is what stops her
+        // leaving the window open for days as a superstition.
         return renderFull({
           icon: { kind: 'mark' },
           title: 'Waiting for your link',
-          text: 'OnlyX Login is ready. When you click the connect link your manager sent you, your sign-in starts here by itself — there is nothing to set up.',
+          text: 'This app connects your OnlyFans account to OnlyX. Open the chat where your manager sent your connect link and click the link — your sign-in starts right here, by itself.',
+          detail: 'No link? Ask your manager for one. You can close this window until then: OnlyX Login only needs to stay installed, not open.',
           actions: [],
           fine: helpLine(),
         });
