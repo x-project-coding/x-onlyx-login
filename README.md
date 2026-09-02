@@ -50,8 +50,12 @@ depend on, and it answers without a connection.
 ## What the app does, and does not do
 
 - The sign-in happens in a private browser window inside the app, wearing the same browser identity
-  and the same network connection OnlyX uses for the account afterwards — so OnlyFans sees one
-  device signing in, not two.
+  OnlyX uses for the account afterwards — so OnlyFans sees one device signing in, not two.
+- The sign-in normally uses **your own internet connection**, like any browser on your computer.
+  OnlyFans' identity check pairs your computer with your phone and insists both are on the same
+  network, which only your own connection can satisfy. (The OnlyX server can switch the app back to
+  routing the sign-in through the account's own connection — the app follows whatever the server
+  offers, so this needs no update on your side.)
 - When OnlyFans confirms the sign-in, the app hands the session to OnlyX and closes the window.
   OnlyX then verifies it works on its side; the app shows **Connected** when it does.
 - The app keeps **nothing**: the browser window is in memory and is discarded with the run; no
@@ -85,8 +89,8 @@ Layout:
 
 | file | role |
 | --- | --- |
-| `src/main.js` | the flow: link → open pass → tunnel → sign-in view → capture → import → verify |
-| `src/tunnel.js` | a loopback `CONNECT` proxy that carries each stream over the API's WebSocket tunnel |
+| `src/main.js` | the flow: link → open pass → tunnel (only if the server offers one) → sign-in view → capture → import → verify |
+| `src/tunnel.js` | a loopback `CONNECT` proxy that carries each stream over the API's WebSocket tunnel; not started when the open answer says `tunnel: null` |
 | `src/identity.js` | applies the seat's identity to the sign-in view over the DevTools protocol, watches `/users/me` |
 | `src/session-capture.js` | which cookies to take, how to shape the payload; the WebAuthn refusal script |
 | `src/api.js`, `src/messages.js` | the three API calls; what the creator reads for every failure |
