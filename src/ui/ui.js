@@ -154,10 +154,13 @@
         });
       case 'idle':
       default:
+        // The screen a creator meets when she opens the app from its icon, with no link. It must
+        // read as "ready and waiting" — a still page with an imperative title reads as an error,
+        // as if the app had failed to do something. Waiting is the state; the link is the next step.
         return renderFull({
           icon: { kind: 'mark' },
-          title: 'Open the link your manager sent you',
-          text: 'OnlyX Login opens by itself when you click a connect link. There is nothing to set up here.',
+          title: 'Waiting for your link',
+          text: 'OnlyX Login is ready. When you click the connect link your manager sent you, your sign-in starts here by itself — there is nothing to set up.',
           actions: [],
           fine: helpLine(),
         });

@@ -484,7 +484,12 @@ const createWindow = () => {
     minHeight: 520,
     title: 'OnlyX Login',
     backgroundColor: '#0b0b0f',   // the brand canvas, so the window never flashes a foreign colour
-    show: false,
+    // Shown from birth, deliberately. v1.0.0 used show:false + 'ready-to-show', but that event
+    // belongs to the window's OWN webContents — which never loads anything here, all content being
+    // child WebContentsViews — so it never fired, and a launch from the icon (no link, so no
+    // focusWindow either) ran forever with no window at all. An unconditional show has no event to
+    // miss, and backgroundColor keeps the frame on-brand until the header view paints.
+    show: true,
     autoHideMenuBar: true,
   });
   header = new WebContentsView({
@@ -503,10 +508,6 @@ const createWindow = () => {
   void header.webContents.loadFile(path.join(here, 'ui', 'index.html'));
   header.webContents.on('did-finish-load', () => header.webContents.send('state', state));
   win.on('resize', layout);
-  win.once('ready-to-show', () => {
-    win.show();
-    layout();
-  });
   win.on('closed', () => {
     win = null;
     header = null;
