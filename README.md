@@ -130,6 +130,26 @@ Notarization needs **no flag**: electron-builder starts it as soon as one full s
 credentials is in the environment, and its `mac.notarize` option exists only to *disable* that. A
 workflow that passes `--config.mac.notarize=true` to "switch it on" is doing nothing.
 
+### Auto-update
+
+From v1.0.1 the app updates itself: at launch it checks the latest **published** release's
+`latest.yml` / `latest-mac.yml`, downloads in the background, and installs when the creator closes
+the app — never during a sign-in, and a failed check (offline, GitHub down) is logged and changes
+nothing. The policy lives in `src/update-policy.js`; the wiring in `src/main.js`. Three release
+facts matter:
+
+- **macOS updates require a Developer ID-signed app.** Squirrel.Mac refuses to install onto an
+  unsigned or ad-hoc build, so unsigned mac builds skip updates entirely (`auto-update: skip
+  (mac_unsigned)` in the log) rather than promise an update they cannot install. The app probes its
+  own signature at launch, so the first signed release arms mac updates by itself — no code change.
+  Until then, mac users get new versions by reinstalling, exactly as before.
+- The mac build produces a **ZIP beside the DMG**: the ZIP is what Squirrel.Mac installs from
+  (v1.0.0 shipped dmg-only, which auto-update could not have used); the DMG stays the human
+  download. When publishing the draft, check dmg + zip + exe are all attached.
+- v1.0.0 predates the updater, so it never updates itself: the move to v1.0.1 is one last manual
+  reinstall per machine. Every version from v1.0.1 on updates on its own (Windows now; macOS once
+  builds are signed).
+
 Downloads: release assets on a **private** repository need a GitHub login to download, so either
 keep this repository public (the app has no secrets in it) or copy each release's DMG/EXE to a
 public download location and point the OnlyX connect page at it.

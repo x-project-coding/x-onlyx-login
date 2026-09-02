@@ -20,6 +20,7 @@
  */
 
 import { app, BrowserWindow, WebContentsView, session, ipcMain, Menu, shell, systemPreferences } from 'electron';
+import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -31,6 +32,7 @@ import { attachIdentity } from './identity.js';
 import { messageForFailedConnect, messageForImport, messageForOpen, messageForTunnel } from './messages.js';
 import { buildSessionPayload, hasLoginCookies } from './session-capture.js';
 import { startForwarder } from './tunnel.js';
+import { isCertSigned, mayPaintUpdate, updateCheckVerdict, updateInstallVerdict } from './update-policy.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const HEADER_HEIGHT = 56;
@@ -473,6 +475,116 @@ const poll = async (r, token) => {
 };
 
 // ---------------------------------------------------------------------------------------------
+// Auto-update: everyone on the new version without a reinstall — never at a sign-in's expense.
+//
+// The only thing written to disk is the staged installer, in the OS's cache location — the app
+// binary itself, no creator data — which is what "the app persists nothing" has always meant:
+// nothing OF A RUN outlives the run.
+// ---------------------------------------------------------------------------------------------
+
+let updater = null; // the armed electron-updater instance; stays null whenever updates are off
+let updateDownloaded = false;
+
+/**
+ * Is the running binary certificate-signed? Squirrel.Mac's opinion is the one that counts, and it
+ * reads the signature, not a config — so ask codesign about the actual executable. Any failure
+ * (no codesign, timeout) resolves false: a build that cannot PROVE it is signed must not promise
+ * an update it may be unable to install.
+ */
+const macCertSigned = () =>
+  new Promise((resolve) => {
+    execFile('codesign', ['-dvv', process.execPath], { timeout: 10_000 }, (_err, stdout, stderr) => {
+      resolve(isCertSigned(`${stdout ?? ''}\n${stderr ?? ''}`));
+    });
+  });
+
+/** Update screens may replace only the idle screen — never a run's (update-policy.js says why). */
+const paintUpdate = (phase, version) => {
+  if (!mayPaintUpdate(state.phase)) return;
+  setState({ phase, version: version ?? null });
+};
+
+/**
+ * WHEN: once, at launch, in the background, after the link (if any) has been dispatched.
+ *
+ * This is a short-lived utility, usually launched BY a link that immediately starts a sign-in — so
+ * "check when idle" would mean never, and "check after the run" would give a 100+ MB download a
+ * few seconds before the creator closes the app. Launch is the one moment every session has, and
+ * it hands the download the whole sign-in (minutes) to finish quietly. The check races nothing:
+ * it cannot paint over a run (paintUpdate) and cannot restart the app (install happens on quit,
+ * or via the idle screen's button, both guarded by update-policy.js).
+ *
+ * Every failure in here is logged and swallowed — offline, GitHub down, rate-limited. The app's
+ * job is the sign-in; an update must never block it, and a failed check is not an error the
+ * creator can act on, so she is never shown one.
+ */
+const startUpdater = async () => {
+  const signed = process.platform === 'darwin' ? await macCertSigned() : true;
+  const verdict = updateCheckVerdict({ packaged, platform: process.platform, signed });
+  if (!verdict.check) {
+    // 'mac_unsigned' is the expected answer until builds carry a Developer ID: Squirrel.Mac
+    // refuses to install onto an unsigned (or ad-hoc) build, so nothing is checked, downloaded or
+    // promised — no broken retry loop, no "update ready" it cannot honour. The probe reads the
+    // running binary, so the first signed release arms updates by itself, with no change here.
+    log(`auto-update: skip (${verdict.reason})`);
+    return;
+  }
+  let mod;
+  try {
+    // Loaded lazily: if the dependency is broken or missing, the sign-in must still work.
+    mod = await import('electron-updater');
+  } catch (err) {
+    log(`auto-update: unavailable (${String(err?.message ?? err).slice(0, 120)})`);
+    return;
+  }
+  const autoUpdater = mod.default?.autoUpdater ?? mod.autoUpdater;
+  autoUpdater.logger = null; // milestones are logged below, once each
+  autoUpdater.autoDownload = true;
+  // The natural install moment for an app that is opened for minutes and then closed: on quit.
+  // The creator finishes, closes the window as she always does, the staged update applies itself,
+  // and the next link opens the new version. No prompt, and no restart she did not ask for.
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  autoUpdater.on('update-available', (info) => {
+    log(`auto-update: ${info?.version ?? 'a newer version'} available, downloading in the background`);
+    paintUpdate('update-downloading', info?.version);
+  });
+  autoUpdater.on('update-not-available', () => log('auto-update: up to date'));
+  autoUpdater.on('update-downloaded', (info) => {
+    updateDownloaded = true;
+    log(`auto-update: ${info?.version ?? 'update'} downloaded; installs when the app closes`);
+    paintUpdate('update-ready', info?.version);
+  });
+  autoUpdater.on('error', (err) => {
+    // Logged, never surfaced: she cannot act on it, and an error screen here would read as HER
+    // sign-in failing. If the downloading screen was promised, hand it back to idle rather than
+    // leave a spinner that spins for ever.
+    log(`auto-update: ${String(err?.message ?? err).slice(0, 160)}`);
+    if (state.phase === 'update-downloading') setState({ phase: 'idle' });
+  });
+
+  updater = autoUpdater;
+  await autoUpdater.checkForUpdates().catch(() => {
+    /* already logged by the 'error' handler */
+  });
+};
+
+/**
+ * The update-ready screen's Restart button. Verdict taken at CLICK time, not paint time: a link
+ * can arrive between the screen appearing and the press, and restarting then would destroy the
+ * run it just started.
+ */
+const installUpdateNow = () => {
+  const verdict = updateInstallVerdict({ runActive: Boolean(run && !run.done), downloaded: updateDownloaded });
+  if (!updater || !verdict.install) {
+    log(`auto-update: restart refused (${updater ? verdict.reason : 'not_armed'})`);
+    return;
+  }
+  // (silent, relaunch): she asked to restart, so the app comes back; the installer shows no UI.
+  updater.quitAndInstall(true, true);
+};
+
+// ---------------------------------------------------------------------------------------------
 // The window, the link, the process.
 // ---------------------------------------------------------------------------------------------
 
@@ -543,6 +655,7 @@ const handleClaim = (claim) => {
 ipcMain.on('action', (_event, name) => {
   if (name === 'close') win?.close();
   else if (name === 'help') header?.webContents.send('help');
+  else if (name === 'install-update') installUpdateNow();
 });
 
 const gotLock = app.requestSingleInstanceLock();
@@ -574,6 +687,8 @@ if (!gotLock) {
     const claim = pendingClaim ?? claimFromArgv(process.argv);
     pendingClaim = null;
     if (claim) handleClaim(claim);
+    // After the link is dispatched, so the check can never delay the reason the app was opened.
+    void startUpdater();
   });
 
   // Quits on every platform, macOS included. This is a single-shot utility opened BY a link, not an

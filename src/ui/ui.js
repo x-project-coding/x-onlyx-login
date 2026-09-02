@@ -152,6 +152,25 @@
           text: state.detail ?? '',
           actions: [button('Help', openHelp), button('Close', () => window.onlyx.close(), true)],
         });
+      // The update screens. Main paints these only over the idle screen (update-policy.js) — a
+      // creator mid-sign-in never sees them — so their copy's one job is to keep the link primary:
+      // an update must never read as "wait before using your link".
+      case 'update-downloading':
+        return renderFull({
+          icon: { kind: 'spin' },
+          title: 'Updating OnlyX Login',
+          text: 'A newer version is downloading in the background. Your connect link works as normal — click it any time.',
+          actions: [],
+          fine: helpLine(),
+        });
+      case 'update-ready':
+        return renderFull({
+          icon: { kind: 'ok', glyph: '↻' },
+          title: 'Update ready',
+          text: `${state.version ? `Version ${state.version}` : 'The new version'} installs itself when you close the app. Restart now to get it right away — or just click your connect link as normal.`,
+          actions: [button('Restart to update', () => window.onlyx.installUpdate(), true)],
+          fine: helpLine(),
+        });
       case 'idle':
       default:
         // The screen a creator meets when she opens the app from its icon, with no link. It must

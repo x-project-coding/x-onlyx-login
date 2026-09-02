@@ -20,6 +20,13 @@ mac:
     - target: dmg
       arch:
         - universal
+    # The ZIP is the auto-update artifact, not a human download: Squirrel.Mac installs updates
+    # from a ZIP only. v1.0.0 shipped dmg-only, so its latest-mac.yml named an artifact the mac
+    # updater can never use — an update check would have found the version and then had nothing it
+    # could install. The DMG stays what the connect page offers people.
+    - target: zip
+      arch:
+        - universal
   hardenedRuntime: true
   gatekeeperAssess: false
   entitlements: build/entitlements.mac.plist

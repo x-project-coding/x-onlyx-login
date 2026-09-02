@@ -65,4 +65,12 @@ fi
 if grep -q "127.0.0.1" "$OUT"; then
   echo "[packaged] FAIL: a packaged build used a test API base"; exit 1
 fi
-echo "[packaged] OK: packed build boots from asar, reads the deep link, enters the flow, ignores test hooks"
+# The auto-update policy must have RUN and chosen to stay off the network: this Linux dir build has
+# no published artifact, so the one correct answer is a logged skip. Absence of the line means the
+# update wiring silently never executed — and a check that DID run here would be the updater
+# reaching GitHub from a test build, exactly what this script's loopback pin exists to forbid.
+if ! grep -q "auto-update: skip (no_feed_for_platform)" "$OUT"; then
+  echo "[packaged] FAIL: no auto-update policy line — the update wiring did not run (or it ran a check)"
+  tail -30 "$OUT"; exit 1
+fi
+echo "[packaged] OK: packed build boots from asar, reads the deep link, enters the flow, ignores test hooks, and the updater stays off the network"
