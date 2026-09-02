@@ -193,7 +193,9 @@ export const startFakeTunnel = async ({ onlyfansPort, expectToken }) => {
  */
 export const startFakeApi = async ({ tunnelPort = null, userAgent, claim, connectAfter = 2, identity = {} }) => {
   const token = `sess-token-${Math.random().toString(36).slice(2)}`;
-  const record = { open: 0, imports: [], statusHits: 0 };
+  // `connectedFrom` is the poll number at which this fake FIRST answered `connected`. The app
+  // must not have shown its success screen before it — see the gate assertions in app.test.js.
+  const record = { open: 0, imports: [], statusHits: 0, connectedFrom: null };
   const readBody = (req) =>
     new Promise((resolve) => {
       let b = '';
@@ -246,6 +248,7 @@ export const startFakeApi = async ({ tunnelPort = null, userAgent, claim, connec
       if (bearer !== token) return json(res, 401, { error: 'pass_invalid' });
       record.statusHits += 1;
       const connected = record.imports.length > 0 && record.statusHits >= connectAfter;
+      if (connected && record.connectedFrom === null) record.connectedFrom = record.statusHits;
       return json(res, 200, {
         state: connected ? 'connected' : record.imports.length ? 'verifying' : 'awaiting_session',
         username: 'creatorx',

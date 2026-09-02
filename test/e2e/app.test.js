@@ -62,7 +62,13 @@ test(`a link opens, signs in, imports the session, and reaches success${process.
   const claim = 'e2eClaim_0123456789';
   const of = await startFakeOnlyFans({ key: cert.key, cert: cert.cert });
   const tunnel = await startFakeTunnel({ onlyfansPort: of.port });
-  const api = await startFakeApi({ tunnelPort: tunnel.port, userAgent: MAC_UA, claim });
+  // FOUR polls before the fake says `connected`, not the default two. The success screen is what
+  // tells a creator she can walk away, and the only thing that may put it on screen is the SEAT's
+  // verdict — the API answers `connected` only once the seat has captured a jar of its own after
+  // the import (connectState in connect-app.service.ts). An app that treated its own import being
+  // ACCEPTED as success would show it immediately, and against `connectAfter: 2` that mistake is
+  // one poll away from looking correct. Three refusals make the gap unmistakable.
+  const api = await startFakeApi({ tunnelPort: tunnel.port, userAgent: MAC_UA, claim, connectAfter: 4 });
 
   const stateFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'onlyx-e2e-state-')), 'states.jsonl');
   // ONLYX_TEST_PACKAGED_BIN points at a packed build's executable. Without it this drives the
@@ -116,6 +122,22 @@ test(`a link opens, signs in, imports the session, and reaches success${process.
   assert.ok(phases.includes('signin'), 'went through signin');
   assert.ok(phases.includes('verifying'), 'went through verifying');
   assert.equal(hit.phase, 'success');
+
+  // THE GATE. `success` is reached only on the seat's verdict, never on the import being accepted.
+  //
+  // Asserted against the FAKE'S OWN RECORD of when it first answered `connected`, not against a
+  // phase list alone: `phases.includes('verifying')` above is true of an app that shows verifying
+  // for one frame and then succeeds on the very next answer, whatever that answer says.
+  assert.equal(api.record.connectedFrom, 4, 'the fake did not hold the app off for three polls');
+  const captured = states.findIndex((s) => s.phase === 'captured');
+  assert.ok(captured >= 0, 'the app never recorded capturing the session');
+  const verifyingAfterImport = states.slice(captured).filter((s) => s.phase === 'verifying');
+  assert.ok(
+    verifyingAfterImport.length >= 3,
+    `the app succeeded before the seat confirmed: only ${verifyingAfterImport.length} verifying state(s) between the import and success`,
+  );
+  // ...and nothing after it. A success screen the app paints over is not a success screen.
+  assert.equal(states.at(-1)?.phase, 'success', `success was not the final state: ${phases.join(', ')}`);
 
   // The pass was opened once, and the tunnel carried the bearer token.
   assert.equal(api.record.open, 1);

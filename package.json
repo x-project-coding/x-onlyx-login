@@ -15,7 +15,7 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test test/*.test.js",
-    "test:e2e": "node -e \"require('electron')\" && node --test --test-concurrency=1 test/e2e/app.test.js test/e2e/no-tunnel.test.js test/e2e/native-identity.test.js test/e2e/diagnostics.test.js test/e2e/vendor-popup.test.js test/e2e/no-link.test.js test/e2e/branding.test.js test/e2e/layout.test.js",
+    "test:e2e": "node -e \"require('electron')\" && node --test --test-concurrency=1 test/e2e/app.test.js test/e2e/no-tunnel.test.js test/e2e/native-identity.test.js test/e2e/diagnostics.test.js test/e2e/vendor-popup.test.js test/e2e/no-link.test.js test/e2e/branding.test.js test/e2e/layout.test.js test/e2e/close.test.js",
     "pack": "electron-builder --dir",
     "dist:mac": "electron-builder --mac",
     "dist:win": "electron-builder --win",
