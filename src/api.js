@@ -11,6 +11,8 @@
  * for the creator in one place (messages.js) and the transport stays free of prose.
  */
 
+import { APP_CAPS } from './native-identity.js';
+
 export class ApiError extends Error {
   constructor(status, code, detail = null) {
     super(`api ${status} ${code}`);
@@ -28,10 +30,15 @@ export class OnlyxApi {
   #fetch;
   #meta;
 
-  constructor(base, { fetch = globalThis.fetch, appVersion = null, platform = null } = {}) {
+  constructor(base, { fetch = globalThis.fetch, appVersion = null, platform = null, caps = APP_CAPS } = {}) {
     this.#base = base.replace(/\/+$/, '');
     this.#fetch = fetch;
-    this.#meta = { appVersion, platform };
+    // WHAT THIS BUILD CAN DO, sent with the claim. The server decides which identity a sign-in
+    // wears, but it can only offer the honest one to a build that can construct it — an older app
+    // told to stop overriding its User-Agent would present `Electron/44.1.1` and a brand list with
+    // no `Google Chrome` in it. Declaring the capability is how the server tells the two apart; an
+    // app that sends nothing keeps the seat's identity, which is exactly what v1.1.0 does.
+    this.#meta = { appVersion, platform, caps };
   }
 
   get base() {

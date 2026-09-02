@@ -21,4 +21,4 @@ node -e "require('electron')" >/dev/null
 
 # Serial as well: these drive a real browser under one display, and they are clearer to read when
 # one finishes before the next starts.
-exec node --test --test-concurrency=1 test/e2e/app.test.js test/e2e/no-tunnel.test.js test/e2e/diagnostics.test.js test/e2e/vendor-popup.test.js test/e2e/no-link.test.js test/e2e/branding.test.js test/e2e/layout.test.js
+exec node --test --test-concurrency=1 test/e2e/app.test.js test/e2e/no-tunnel.test.js test/e2e/native-identity.test.js test/e2e/diagnostics.test.js test/e2e/vendor-popup.test.js test/e2e/no-link.test.js test/e2e/branding.test.js test/e2e/layout.test.js
