@@ -9,9 +9,16 @@
  * `activate` handler added back) would have passed every suite while leaving her clicking a dead
  * button.
  *
- * The macOS half matters most and is the half a reviewer is most likely to "fix": Electron's
- * default is for an app to OUTLIVE its last window on darwin. main.js overrides that on purpose.
- * This test is what makes that override load-bearing rather than decorative.
+ * WHAT THIS FILE CANNOT PROVE, since it claimed otherwise for a while: the macOS half. Electron's
+ * default is for an app to OUTLIVE its last window on darwin, and main.js overrides that on
+ * purpose — but this test runs on Linux and nowhere else (CI is ubuntu-latest; the e2e image is
+ * node:22-bookworm), and on Linux Electron already quits when the last window goes. Restore the
+ * standard `if (process.platform !== 'darwin') app.quit()`, or delete the handler outright, and
+ * everything below still passes. What is asserted here is the CHAIN, on the one platform available:
+ * the label the creator reads, the IPC channel behind it, main.js's action map, and that the click
+ * ends the PROCESS rather than merely hiding a window. That the quit is unconditional — darwin
+ * included — is asserted in test/lifecycle.test.js, which imports main.js against a stubbed
+ * Electron once per platform and calls the `window-all-closed` handler it registered.
  */
 
 import assert from 'node:assert/strict';
@@ -50,10 +57,17 @@ test('the success screen offers one button, it says Close, and clicking it quits
     `the success screen's actions are not exactly one Close button: ${JSON.stringify(report.actions)}`,
   );
   assert.equal(report.buttonFound, true, 'no button on the success screen matched /close/i');
-  assert.equal(report.clicked, true, 'the click was never dispatched');
+  assert.equal(report.clicked, true, `the click was never dispatched: ${report.clickNote || JSON.stringify(report)}`);
 
   // THE PROPERTY. Not "the window went away" — the APP ended, which is what the copy promises and
   // what `window-all-closed -> app.quit()` exists to deliver on every platform.
   assert.equal(report.quit, true, `Close did not quit the app: ${JSON.stringify(report)}`);
+
+  // AND IT ENDED. `quit` comes from 'will-quit', which is the app's DECISION, and a decision is
+  // vetoable: a single `app.on('will-quit', (e) => e.preventDefault())` leaves every assertion
+  // above true — quit: true, windowsAfterClose: 0 — while the creator sits in front of an app that
+  // never goes away, and the only trace is the run taking six seconds longer. The probe's own
+  // stopwatch is what sees that, and `note` is where it says so.
+  assert.equal(report.note, '', `${report.note}: ${JSON.stringify(report)}`);
   assert.equal(report.windowsAfterClose, 0, `a window survived the quit: ${JSON.stringify(report)}`);
 });

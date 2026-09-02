@@ -29,6 +29,8 @@ const found = {
   actions: [],
   buttonFound: false,
   clicked: false,
+  /** Why the click did NOT happen, when the page was able to say so. Empty on the success path. */
+  clickNote: '',
   /** Set from 'will-quit' — the app decided to end, which is the property under test. */
   quit: false,
   windowsAfterClose: null,
@@ -119,16 +121,36 @@ app.whenReady().then(async () => {
   // occasionally won the race and the test passed; inside the full suite the window went first and
   // the probe reported `clicked: false` about a click that had in fact worked perfectly. A flag
   // set after an await is invisible to whatever the await destroyed.
-  found.clicked = true;
+  //
+  // WHAT KEEPS THE CLAIM FROM BEING A TAUTOLOGY. It was `found.clicked = true`, unconditionally,
+  // which is a value that cannot be false and therefore an assertion that cannot fail. Two things
+  // make it earn its place, neither of them an await: it is claimed only for a button this probe
+  // actually FOUND, and the expression below is written so it cannot throw — every path returns a
+  // string. Silence therefore means one thing only (the frame died, i.e. the click worked), while
+  // ANY answer means the click did not happen, and takes the flag back down.
+  found.clicked = found.buttonFound;
   write();
   void header
     .executeJavaScript(
       `(() => {
-         const b = Array.from(document.getElementById('full-actions').querySelectorAll('button'))
-           .find((el) => /close/i.test(el.textContent));
-         if (b) b.click();
+         try {
+           const host = document.getElementById('full-actions');
+           const b = host && Array.from(host.querySelectorAll('button'))
+             .find((el) => /close/i.test(el.textContent));
+           if (!b) return 'no button on the success screen matched /close/i';
+           b.click();
+           return '';
+         } catch (err) {
+           return 'dispatching the click threw: ' + ((err && err.message) || err);
+         }
        })()`,
     )
+    .then((answer) => {
+      if (!answer) return; // '' — dispatched, and the frame simply outlived the expression
+      found.clicked = false;
+      found.clickNote = answer;
+      write();
+    })
     .catch(() => {
       /* the frame going away underneath is the SUCCESS case */
     });
