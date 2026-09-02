@@ -23,6 +23,11 @@
  *
  * Nothing is persisted: the browser partition is in memory and dropped with the run, the token
  * lives in this process for the pass's lifetime, and no file is written by the app.
+ *
+ * The one exception, and it is opt-in: `ONLYX_LOGIN_DIAG` makes the run write a record of what the
+ * sign-in view was allowed to do — navigations, denied popups, blocked navigations, permission
+ * verdicts, page errors — to a local file (diagnostics.js). Off unless asked for, and it never
+ * writes a cookie, a token, a query-string value or anything the creator types.
  */
 
 import { app, BrowserWindow, WebContentsView, session, ipcMain, Menu, shell, systemPreferences } from 'electron';
@@ -34,6 +39,13 @@ import { fileURLToPath } from 'node:url';
 import { OnlyxApi } from './api.js';
 import { resolveApiBase } from './config.js';
 import { SCHEME, claimFromArgv, parseDeepLink } from './deep-link.js';
+import {
+  attachContentsDiagnostics,
+  diagnosticTarget,
+  openRecorder,
+  popupsAllowed,
+  redactUrl,
+} from './diagnostics.js';
 import { attachIdentity } from './identity.js';
 import { messageForFailedConnect, messageForImport, messageForOpen, messageForTunnel } from './messages.js';
 import { buildSessionPayload, hasLoginCookies } from './session-capture.js';
@@ -72,8 +84,30 @@ let runSeq = 0;
 let pendingClaim = null;
 let state = { phase: 'idle' };
 
+/**
+ * The sign-in view's diagnostic record — null on every run nobody asked for one (diagnostics.js).
+ * Armed once, at ready, so a link that arrives before the window still lands in the same file.
+ */
+let diag = null;
+const record = (kind, fields) => {
+  try {
+    diag?.record(kind, fields);
+  } catch {
+    /* a diagnostic must never break a sign-in */
+  }
+};
+
+/**
+ * May a vendor handoff have a real popup window? Off by default — see the window-open handler.
+ * Read once at startup so one run cannot change policy halfway through.
+ */
+const allowPopups = popupsAllowed({ env: process.env });
+/** A popup a vendor asked for is one window; a page that asks for twelve is not a handoff. */
+const POPUP_LIMIT = 2;
+
 const setState = (next) => {
   state = { ...next, at: new Date().toISOString() };
+  record('state', { phase: next.phase, title: next.title ?? null, seatState: next.seatState ?? null });
   header?.webContents.send('state', state);
   if (testHooks?.stateFile) {
     try {
@@ -135,6 +169,24 @@ const closeBrowser = async (r) => {
     r.identity.detach();
     r.identity = null;
   }
+  for (const detach of r.detach ?? []) {
+    try {
+      detach();
+    } catch {
+      /* the contents are already gone */
+    }
+  }
+  r.detach = [];
+  // Popups go before the view that opened them: Electron closes a child with its opener anyway,
+  // but a window left on screen after the run ended is a window the creator has to close herself.
+  for (const popup of r.popups ?? []) {
+    try {
+      if (!popup.isDestroyed()) popup.destroy();
+    } catch {
+      /* already gone */
+    }
+  }
+  r.popups = [];
   if (r.view) {
     const view = r.view;
     r.view = null;
@@ -172,9 +224,178 @@ const teardown = async () => {
   }
 };
 
+/**
+ * THE WINDOW-OPEN GUARD, AND WHY IT IS THE MOST DANGEROUS ONE IN THIS FILE.
+ *
+ * v1.0.0 answered every `window.open` with "deny", and for an https target loaded it IN THE SAME
+ * VIEW instead. That is not a milder version of a popup — it is the destruction of the page that
+ * asked. The opener's document, its timers, its websockets, its `message` listeners and every
+ * variable it held are gone, `window.opener` in the new document is null, and a `window.open()`
+ * that resolved to `about:blank` (the shape used to open a window and then fill it in) simply
+ * returned null to a caller about to dereference it.
+ *
+ * Three things a real popup would have carried are also lost, and each one on its own can make a
+ * vendor answer a later request "not found":
+ *   - the POST body, when the handoff was a `<form target="_blank">` — `loadURL` is a GET;
+ *   - the `Referer`, since a browser-initiated `loadURL` sends none and looks to the far end like
+ *     a URL typed into an address bar (`Sec-Fetch-Site: none`);
+ *   - `window.name`, which some flows use to carry a channel id.
+ *
+ * On 2026-09-02 OnlyFans asked the operator to confirm his identity, offered a QR code, and the
+ * phone that scanned it was told `Error.Header.NotFound` — the vendor could not resolve a message
+ * for the state it was in, i.e. the verification session behind that QR did not exist. Whether a
+ * popup was ever attempted is UNKNOWN, because this handler did not log. It does now.
+ *
+ * So, in order: the two losses that need no hypothesis to justify fixing are fixed (the referrer
+ * and the post body now ride the in-place load), and the popup itself is available but OFF —
+ * `ONLYX_LOGIN_POPUPS=allow` — so a single reproduction can settle it without shipping a guess.
+ * A popup, when allowed, is a real window with the SAME locked-down webPreferences, the SAME
+ * in-memory session, the same navigation guard, the same identity, and a hard cap.
+ */
+const onWindowOpen = (r, contents, tag, details) => {
+  const { url, frameName, disposition, features, postBody, referrer } = details ?? {};
+  const https = /^https:\/\//i.test(url ?? '');
+  const asPopup = https && allowPopups && (r.popups?.length ?? 0) < POPUP_LIMIT;
+  const decision = asPopup ? 'popup' : https ? 'load-in-place' : 'deny';
+  log(`run ${r.id}: ${tag} asked for a window (${disposition ?? 'default'}) — ${decision}`);
+  record('window-open', {
+    run: r.id,
+    view: tag,
+    url: redactUrl(url),
+    frameName: frameName || null,
+    disposition: disposition ?? null,
+    features: features || null,
+    // A form handoff carries its session HERE, not in the URL, and the in-place load used to drop
+    // it on the floor. Recorded as a fact, never as content.
+    postBodyParts: postBody?.data?.length ?? 0,
+    postContentType: postBody?.contentType ?? null,
+    referrerPolicy: referrer?.policy ?? null,
+    hasReferrer: Boolean(referrer?.url),
+    decision,
+  });
+  if (asPopup) return { action: 'allow', overrideBrowserWindowOptions: popupWindowOptions() };
+  if (https) {
+    const options = {};
+    if (referrer?.url) options.httpReferrer = referrer;
+    if (postBody?.data?.length) {
+      options.postData = postBody.data;
+      const boundary = postBody.boundary ? `; boundary=${postBody.boundary}` : '';
+      options.extraHeaders = `content-type: ${postBody.contentType}${boundary}`;
+    }
+    // Caught. `loadURL` rejects whenever a navigation is superseded — ERR_ABORTED (-3), which the
+    // e2e reproduces every run — and the original call had no catch, so that rejection went
+    // unhandled. MEASURED: Electron 44 does not kill the main process for it, so this is not a
+    // crash fix; it is the difference between a silent abort and a line saying the handoff's own
+    // load failed, which is the whole point of this lane.
+    void contents.loadURL(url, options).catch((err) => {
+      log(`run ${r.id}: ${tag} in-place load failed: ${String(err?.message ?? err).slice(0, 120)}`);
+    });
+  }
+  return { action: 'deny' };
+};
+
+/**
+ * What a popup is allowed to be: no Node, no preload, no persistence of its own. Deliberately NOT
+ * given a `session` — a window opened by the page inherits its opener's, which is the run's
+ * in-memory partition, and `adoptPopup` refuses any window where that stops being true.
+ *
+ * MEASURED, so nobody trusts the wrong line: setting `nodeIntegration: true` HERE does not give the
+ * popup Node — the e2e's `node=false` probe still passes with that mutation, because Electron
+ * derives a page-opened window's security preferences from its opener rather than from these
+ * options. So the powerlessness is inherited, and the assertion in vendor-popup.test.js is what
+ * actually holds it. These stay as an explicit statement of intent and as cover for the day that
+ * inheritance changes; they are not, today, what enforces it.
+ */
+const popupWindowOptions = () => ({
+  width: 560,
+  height: 760,
+  autoHideMenuBar: true,
+  backgroundColor: '#0b0b0f',
+  parent: win ?? undefined,
+  webPreferences: {
+    sandbox: true,
+    contextIsolation: true,
+    nodeIntegration: false,
+    nodeIntegrationInSubFrames: false,
+    webviewTag: false,
+    spellcheck: false,
+  },
+});
+
+/** A popup that was allowed: same guards, same identity, closed with the run. */
+const adoptPopup = (r, child, details) => {
+  const contents = child.webContents;
+  const kill = (reason) => {
+    record('popup-refused', { run: r.id, reason, url: redactUrl(details?.url) });
+    try {
+      child.destroy();
+    } catch {
+      /* already gone */
+    }
+  };
+  if (r !== run || r.done) return kill('run-over');
+  // The popup must share the run's jar. If Electron ever stopped handing a page-opened window its
+  // opener's session, the popup would be a second browser with a second cookie store — and the
+  // sign-in completed in it would not be the one this app captures.
+  if (r.session && contents.session !== r.session) return kill('foreign-session');
+  r.popups.push(child);
+  const tag = `popup${r.popups.length}`;
+  child.on('closed', () => {
+    r.popups = (r.popups ?? []).filter((w) => w !== child);
+  });
+  guardContents(r, contents, tag);
+  record('popup-opened', { run: r.id, view: tag, url: redactUrl(details?.url) });
+  // The popup wears the same identity as the view that opened it — best effort and never awaited.
+  // Its first document is already being created, so the pins reach the popup's NEXT document while
+  // the user-agent override and its client hints apply from its next request; a popup carrying
+  // Electron's own fingerprint beside a pinned opener would be a contradiction of its own.
+  if (!r.identitySpec) return;
+  void attachIdentity(contents, r.identitySpec, {
+    onMe: (me) => onMe(r, me),
+    log: (line) => log(`run ${r.id}: ${tag}: ${line}`),
+  })
+    .then((handle) => {
+      // The run can end while the attach is in flight, and a debugger left attached to a destroyed
+      // window is a leak. A cleanup path, not a behaviour: no test drives a teardown into this
+      // exact window, and a mutation to it survives the suite.
+      if (r !== run || r.done || !r.popups.includes(child)) return handle.detach();
+      r.detach.push(() => handle.detach());
+    })
+    .catch((err) => {
+      record('popup-identity-failed', { run: r.id, view: tag, error: String(err?.message ?? err).slice(0, 120) });
+    });
+};
+
+/**
+ * Every guard a browsing context of ours gets, in one place so a popup cannot be born with fewer
+ * than the view that opened it.
+ */
+const guardContents = (r, contents, tag) => {
+  // Electron 44 passes a details object and keeps the old positional `url` after it, deprecated.
+  // Read whichever is there: a `url` that arrived `undefined` would fail the https test below and
+  // block EVERY navigation, which is a dead sign-in rather than a loud one.
+  const navUrl = (details, positional) =>
+    typeof details?.url === 'string' ? details.url : typeof positional === 'string' ? positional : '';
+  const httpsOnly = (event, positional) => {
+    const url = navUrl(event, positional);
+    if (!/^https:\/\//i.test(url) && url !== 'about:blank') {
+      log(`run ${r.id}: blocked navigation to ${url.slice(0, 80)}`);
+      // Blocking is silent to the page — `preventDefault` raises nothing a site can catch — so
+      // without this record a guard of ours and a vendor outage look identical from the outside.
+      record('navigation-blocked', { run: r.id, view: tag, url: redactUrl(url) });
+      event.preventDefault();
+    }
+  };
+  contents.on('will-navigate', httpsOnly);
+  contents.on('will-redirect', httpsOnly);
+  contents.setWindowOpenHandler((details) => onWindowOpen(r, contents, tag, details));
+  contents.on('did-create-window', (child, childDetails) => adoptPopup(r, child, childDetails));
+  if (diag) r.detach.push(attachContentsDiagnostics(contents, diag, { tag }));
+};
+
 const startConnect = async (claim) => {
   await teardown();
-  const r = { id: ++runSeq, done: false, refusedIds: new Set(), captured: false };
+  const r = { id: ++runSeq, done: false, refusedIds: new Set(), captured: false, popups: [], detach: [] };
   run = r;
   focusWindow();
   setState({ phase: 'opening' });
@@ -189,7 +410,22 @@ const startConnect = async (claim) => {
   r.token = opened.sessionToken;
   r.account = opened.account;
   r.expiresAt = opened.expiresAt;
+  r.identitySpec = opened.identity;
   log(`run ${r.id}: pass opened for @${opened.account?.username} (${opened.identity?.profile} profile)`);
+  record('run-open', {
+    run: r.id,
+    username: opened.account?.username ?? null,
+    identityProfile: opened.identity?.profile ?? null,
+    // The identity itself is the other half of a vendor's device check, so its SHAPE is recorded:
+    // never the pass token, never a cookie — a user agent, a platform, and the LENGTH of the pin
+    // script, which is all that is needed to tell "the pins were applied" from "they were not".
+    userAgent: opened.identity?.userAgent ?? null,
+    platform: opened.identity?.platform ?? null,
+    timezone: opened.identity?.timezone ?? null,
+    initScriptChars: typeof opened.identity?.initScript === 'string' ? opened.identity.initScript.length : 0,
+    tunnel: Boolean(opened.tunnel?.url),
+    popupsAllowed: allowPopups,
+  });
 
   // THE SERVER DECIDES WHERE THE SIGN-IN'S TRAFFIC FLOWS (XOF_CONNECT_APP_TUNNEL on x-onlyfans),
   // and says so by offering a tunnel or `tunnel: null`. A tunnel = every stream rides the
@@ -252,8 +488,22 @@ const startConnect = async (claim) => {
     });
   };
 
-  ses.setPermissionRequestHandler((_contents, permission, callback, details) => {
+  ses.setPermissionRequestHandler((_contents, permission, answer, details) => {
     const secure = typeof details?.requestingUrl === 'string' && details.requestingUrl.startsWith('https://');
+    // Wrapped, not sprinkled: every branch below reaches one `callback`, so one place records the
+    // verdict. A permission this app denies is a capability the page loses with no way to say so —
+    // the exact class of failure the diagnostic exists to make visible.
+    const callback = (granted) => {
+      record('permission-request', {
+        run: r.id,
+        permission,
+        granted: Boolean(granted),
+        secure,
+        url: redactUrl(details?.requestingUrl),
+        mediaTypes: Array.isArray(details?.mediaTypes) ? details.mediaTypes : null,
+      });
+      answer(granted);
+    };
     if (permission === 'media' && secure) {
       // The selfie check. On macOS the system asks ONCE, app-wide and for ever: a creator who
       // clicks "Don't Allow" — a reflexive click — is refused by `askForMediaAccess` on every run
@@ -288,11 +538,27 @@ const startConnect = async (claim) => {
     }
     callback(['fullscreen', 'clipboard-sanitized-write'].includes(permission) && secure);
   });
+  const checksSeen = new Set();
   ses.setPermissionCheckHandler((_contents, permission, origin) => {
     const secure = typeof origin === 'string' && origin.startsWith('https://');
-    return secure && ['media', 'fullscreen', 'clipboard-sanitized-write'].includes(permission);
+    const allowed = secure && ['media', 'fullscreen', 'clipboard-sanitized-write'].includes(permission);
+    // Once per answer, not once per call: Chromium re-checks a permission on every use, and a page
+    // polling `permissions.query` would otherwise bury everything else in the file.
+    const key = `${permission}:${allowed}`;
+    if (!checksSeen.has(key)) {
+      checksSeen.add(key);
+      record('permission-check', { run: r.id, permission, allowed, origin: redactUrl(origin) });
+    }
+    return allowed;
   });
-  ses.on('will-download', (event) => event.preventDefault());
+  ses.on('will-download', (event, item) => {
+    record('download-blocked', {
+      run: r.id,
+      url: redactUrl(typeof item?.getURL === 'function' ? item.getURL() : null),
+      mimeType: typeof item?.getMimeType === 'function' ? item.getMimeType() : null,
+    });
+    event.preventDefault();
+  });
   if (testHooks?.certSha256) {
     // A test's fake OnlyFans serves a self-signed cert; accept exactly that one, by SHA-256 of the
     // DER, and nothing else. Electron reports the fingerprint as `sha256/<base64>`; compare the body.
@@ -315,7 +581,16 @@ const startConnect = async (claim) => {
   });
   r.view = view;
   const contents = view.webContents;
-  contents.setWebRTCIPHandlingPolicy('disable_non_proxied_udp');
+  if (r.forwarder) {
+    // ONLY WITH A PROXY. This exists to stop WebRTC opening a UDP path AROUND the forwarder and
+    // showing OnlyFans the machine's real address — a leak that can only happen when there is a
+    // proxy to leak around. With `tunnel: null` there is nothing to bypass, and the policy then
+    // just takes UDP away from a browser that is meant to behave like the creator's everyday one
+    // (the same reasoning as the deliberate absence of `setProxy` above). Not proven to be
+    // involved in the 2026-09-02 identity-check failure — `getUserMedia` is untouched by this, so
+    // it cannot be what breaks a selfie — but a guard whose reason is absent should be too.
+    contents.setWebRTCIPHandlingPolicy('disable_non_proxied_udp');
+  }
   contents.on('login', (event, _details, authInfo, callback) => {
     // The forwarder's own challenge (tunnel.js). Anything else — a site asking for basic auth —
     // is left to Chromium, which has no UI for it here and cancels.
@@ -332,20 +607,7 @@ const startConnect = async (claim) => {
   await contents.loadURL('about:blank').catch(() => {});
   if (r !== run) return closeBrowser(r);
 
-  const httpsOnly = (event, url) => {
-    if (!/^https:\/\//i.test(url) && url !== 'about:blank') {
-      log(`run ${r.id}: blocked navigation to ${url.slice(0, 80)}`);
-      event.preventDefault();
-    }
-  };
-  contents.on('will-navigate', httpsOnly);
-  contents.on('will-redirect', httpsOnly);
-  contents.setWindowOpenHandler(({ url }) => {
-    // One view, no popups: a sign-in provider that insists on a popup is not one the seat could
-    // resume anyway. An https target is loaded in place instead.
-    if (/^https:\/\//i.test(url)) void contents.loadURL(url);
-    return { action: 'deny' };
-  });
+  guardContents(r, contents, 'signin');
   contents.on('render-process-gone', (_event, details) => {
     fail(r, { title: 'The sign-in window stopped', detail: `Please open the link again (${details?.reason ?? 'crashed'}).` });
   });
@@ -618,6 +880,44 @@ const installUpdateNow = () => {
 // The window, the link, the process.
 // ---------------------------------------------------------------------------------------------
 
+/**
+ * Switch the sign-in record on, if asked. OFF on every run that does not set `ONLYX_LOGIN_DIAG`,
+ * and armed here — before the window and before any link is dispatched — so a link that arrived
+ * during launch is recorded from its first state change.
+ *
+ * The path is printed rather than guessed at: an operator reproducing a fault should not have to
+ * know where an Electron app keeps its logs on his platform.
+ */
+const armDiagnostics = () => {
+  let logDir;
+  try {
+    logDir = app.getPath('logs');
+  } catch {
+    logDir = app.getPath('userData');
+  }
+  const file = diagnosticTarget({ env: process.env, packaged, logDir });
+  if (!file) return;
+  try {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    diag = openRecorder({
+      file,
+      meta: {
+        app: app.getVersion(),
+        electron: process.versions.electron,
+        chrome: process.versions.chrome,
+        platform: `${process.platform}-${process.arch}`,
+        packaged,
+        popupsAllowed: allowPopups,
+      },
+    });
+    log(`diagnostics: recording this sign-in to ${file}`);
+  } catch (err) {
+    // A record we cannot write is a record we do not keep — never a sign-in we do not run.
+    log(`diagnostics: not recording (${String(err?.message ?? err).slice(0, 120)})`);
+    diag = null;
+  }
+};
+
 const createWindow = () => {
   win = new BrowserWindow({
     width: 1180,
@@ -712,6 +1012,7 @@ if (!gotLock) {
   }
 
   app.whenReady().then(() => {
+    armDiagnostics();
     buildMenu();
     createWindow();
     const claim = pendingClaim ?? claimFromArgv(process.argv);

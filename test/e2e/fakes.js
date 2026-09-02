@@ -38,10 +38,33 @@ const LOGIN_PAGE = `<!doctype html><html><head><meta charset=utf-8><title>OnlyFa
 })();
 </script></body></html>`;
 
-export const startFakeOnlyFans = async ({ key, cert, userId = '778899', username = 'creatorx' }) => {
-  const state = { loggedIn: false, meHits: 0 };
-  const server = https.createServer({ key, cert }, (req, res) => {
+/**
+ * `pages` serves extra HTML at named paths — how the diagnostics test puts a page that opens a
+ * window, submits a `target=_blank` form and logs an error in front of the real sign-in view.
+ * Every request is recorded in `state.requests` (method, path, referer, content type, body) so a
+ * test can assert what the app's in-place load actually SENT, not just that it happened.
+ */
+export const startFakeOnlyFans = async ({ key, cert, userId = '778899', username = 'creatorx', pages = {} }) => {
+  const state = { loggedIn: false, meHits: 0, requests: [] };
+  const server = https.createServer({ key, cert }, async (req, res) => {
     const url = new URL(req.url, 'https://onlyfans.com');
+    let body = '';
+    if (req.method === 'POST') {
+      body = await new Promise((resolve) => {
+        let b = '';
+        req.on('data', (c) => (b += c));
+        req.on('end', () => resolve(b));
+      });
+    }
+    state.requests.push({
+      method: req.method,
+      path: url.pathname,
+      url: req.url,
+      referer: req.headers.referer ?? null,
+      cookie: req.headers.cookie ?? null,
+      contentType: req.headers['content-type'] ?? null,
+      body,
+    });
     if (url.pathname === '/login' && req.method === 'POST') {
       state.loggedIn = true;
       res.setHeader('set-cookie', [
@@ -61,11 +84,14 @@ export const startFakeOnlyFans = async ({ key, cert, userId = '778899', username
       return res.end(JSON.stringify({ id: userId, username, name: 'Creator X' }));
     }
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
-    res.end(LOGIN_PAGE);
+    res.end(pages[url.pathname] ?? LOGIN_PAGE);
   });
   const port = await listen(server);
   return { port, state, close: () => new Promise((r) => server.close(r)) };
 };
+
+/** The sign-in page itself, for a test that wants to reach it by an unusual route. */
+export const SIGN_IN_PAGE = LOGIN_PAGE;
 
 export const startFakeTunnel = async ({ onlyfansPort, expectToken }) => {
   const seen = { upgrades: 0, tokens: [] };

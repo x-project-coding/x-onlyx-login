@@ -93,11 +93,55 @@ Layout:
 | `src/tunnel.js` | a loopback `CONNECT` proxy that carries each stream over the API's WebSocket tunnel; not started when the open answer says `tunnel: null` |
 | `src/identity.js` | applies the seat's identity to the sign-in view over the DevTools protocol, watches `/users/me` |
 | `src/session-capture.js` | which cookies to take, how to shape the payload; the WebAuthn refusal script |
+| `src/diagnostics.js` | the opt-in record of what the sign-in view was allowed to do (see *Diagnosing a failed sign-in*) |
 | `src/api.js`, `src/messages.js` | the three API calls; what the creator reads for every failure |
 | `src/ui/` | the app's own screens (header bar while signing in, full-window otherwise) |
 | `src/ui/fonts/` | Public Sans (SIL OFL), bundled so the app looks right offline and makes no third-party request |
 
 The server side lives in `x-onlyfans` (`apps/api/src/modules/connect-app/`).
+
+### Diagnosing a failed sign-in
+
+The sign-in view is deliberately locked down — popups denied, non-https navigation blocked,
+downloads refused, every permission but three denied, WebAuthn neutralised — and **every one of
+those guards fails silently.** `event.preventDefault()` tells the page nothing, a denied
+`window.open` returns `null`, and a refused permission is indistinguishable from the creator
+pressing Block. When OnlyFans' identity check failed on 2026-09-02 (a QR code that answered the
+phone `Error.Header.NotFound` — raw i18n keys, i.e. the verification session behind it did not
+exist), the app had recorded nothing at all and we were left with a screenshot.
+
+So: `ONLYX_LOGIN_DIAG` makes one run write a JSON-per-line record of what the sign-in view was
+allowed to do — navigations, redirects, **window-open attempts and the verdict each received**,
+blocked navigations, permission requests and checks, refused downloads, page console errors, crashes
+and every state change. It is **off by default**, and it never writes a secret: URLs keep their
+origin and path and the *names* of their query parameters, fragments become a length, and
+token-shaped runs in console text are masked.
+
+**macOS** — quit the app first (a second copy hands its link to the running one and never reads the
+environment), then from Terminal:
+
+```
+ONLYX_LOGIN_DIAG=1 "/Applications/OnlyX Login.app/Contents/MacOS/OnlyX Login" \
+  "onlyx-connect://open?c=<the claim from the link>"
+```
+
+**Windows** — from PowerShell:
+
+```
+$env:ONLYX_LOGIN_DIAG=1
+& "$env:LOCALAPPDATA\Programs\onlyx-login\OnlyX Login.exe" "onlyx-connect://open?c=<claim>"
+```
+
+The app prints `diagnostics: recording this sign-in to <path>` on startup; that is the file to send
+(macOS puts it in `~/Library/Logs/OnlyX Login/`). Reproduce the failure once, then close the app and
+send the file. Setting the variable to an absolute path writes there instead.
+
+`ONLYX_LOGIN_POPUPS=allow` is the second switch, and it is a **test**, not a fix. By default a
+`window.open` is denied and an https target is loaded in the same view — which destroys the page
+that asked, along with `window.opener`, its `message` listener and anything it held. With this set,
+the vendor gets a real popup window instead: same locked-down preferences, same in-memory session,
+same navigation guard, same identity, capped at two. Use it on a second reproduction *only if* the
+first one's file shows a `window-open` line at the moment the handoff failed.
 
 ### Branding
 
