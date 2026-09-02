@@ -35,7 +35,15 @@ export const judgeMe = (body) => {
   return { id: String(me.id), username: typeof me.username === 'string' ? me.username : null };
 };
 
-const onOnlyFans = (cookie) => typeof cookie?.domain === 'string' && cookie.domain.includes('onlyfans.com');
+/**
+ * Is this cookie OnlyFans'? Anchored, like `isMeUrl` — a bare `.includes('onlyfans.com')` also
+ * matches `x-onlyfans.com` and `onlyfans.com.evil.test`, so the two host checks in this file
+ * disagreed about what OnlyFans is. Not reachable today (the partition is fresh and only ever
+ * navigates to the real, TLS-verified origin), but a jar filter and a URL filter that answer
+ * differently is a defect waiting for the day something else can put a cookie in that store.
+ */
+const onOnlyFans = (cookie) =>
+  typeof cookie?.domain === 'string' && /(^\.?|\.)onlyfans\.com$/i.test(cookie.domain);
 
 export const hasLoginCookies = (cookies) => {
   const named = new Set(

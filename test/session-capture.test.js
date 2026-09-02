@@ -86,3 +86,26 @@ test('buildSessionPayload defaults a missing path to /', () => {
   const [cookie] = buildSessionPayload([{ name: 'sess', value: 'S', domain: '.onlyfans.com' }], null).cookies;
   assert.equal(cookie.path, '/');
 });
+
+test('the cookie domain check is anchored, like the URL check', () => {
+  // `.includes("onlyfans.com")` also matches these two. A jar filter and a URL filter that
+  // disagree about what OnlyFans is will eventually be handed a cookie from the wrong place.
+  const lookalikes = [
+    { name: 'sess', value: 'S', domain: 'x-onlyfans.com' },
+    { name: 'auth_id', value: '9', domain: 'x-onlyfans.com' },
+    { name: 'sess', value: 'S', domain: 'onlyfans.com.evil.test' },
+    { name: 'auth_id', value: '9', domain: 'onlyfans.com.evil.test' },
+  ];
+  assert.equal(hasLoginCookies(lookalikes), false);
+  assert.deepEqual(buildSessionPayload(lookalikes, null).cookies, []);
+
+  // The real shapes still pass: the bare host, and the leading-dot form OnlyFans actually sets.
+  assert.equal(hasLoginCookies([
+    { name: 'sess', value: 'S', domain: 'onlyfans.com' },
+    { name: 'auth_id', value: '9', domain: '.onlyfans.com' },
+  ]), true);
+  assert.equal(
+    buildSessionPayload([{ name: 'sess', value: 'S', domain: 'www.onlyfans.com' }], null).cookies.length,
+    1,
+  );
+});

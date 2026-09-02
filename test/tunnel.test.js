@@ -209,6 +209,32 @@ test('an oversized request head is refused 431', async () => {
   }
 });
 
+test('a refused oversized head stops being read, so the peer cannot grow it for ever', async () => {
+  // The defect this guards: `reply` half-closes the WRITABLE side only. With the data listener
+  // still attached, an unauthenticated local peer could keep streaming into the head buffer until
+  // the app ran out of memory. Asserted through `stats.refused`, which the listener increments —
+  // if it is still attached, the count climbs with every further chunk.
+  const tunnel = await echoTunnel();
+  const fwd = await startForwarder({ tunnelUrl: tunnel.url, sessionToken: 'TOK' });
+  try {
+    const socket = net.connect(fwd.port, '127.0.0.1', () => {
+      socket.write('CONNECT onlyfans.com:443 HTTP/1.1\r\n');
+      socket.write(`X-Pad: ${'a'.repeat(20 * 1024)}`);
+    });
+    await once(socket, 'data');
+    assert.equal(fwd.stats.refused, 1);
+
+    for (let i = 0; i < 8; i++) socket.write('b'.repeat(8 * 1024));
+    await new Promise((resolve) => setTimeout(resolve, 150));
+
+    assert.equal(fwd.stats.refused, 1, 'the forwarder kept reading a head it had already refused');
+    socket.destroy();
+  } finally {
+    await fwd.close();
+    await tunnel.close();
+  }
+});
+
 test('the tunnel answering {t:error} yields 502 to the client', async () => {
   const tunnel = await makeTunnel(() => ({ onOpen: (ws) => ws.send(JSON.stringify({ t: 'error', reason: 'proxy_error' })) }));
   const fatal = [];

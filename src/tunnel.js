@@ -128,8 +128,19 @@ export const startForwarder = async ({
       const end = head.indexOf('\r\n\r\n');
       if (end === -1) {
         if (head.length > HEAD_LIMIT) {
+          // STOP READING FIRST. `reply` half-closes the writable side only, so leaving this
+          // listener attached let the peer keep streaming into `head` for ever — unbounded memory,
+          // reachable by any local process BEFORE it authenticates, which is precisely the surface
+          // the loopback port is supposed to be safe against.
+          client.off('data', onHead);
+          head = null;
           stats.refused += 1;
           reply(client, 431, 'Request Header Fields Too Large');
+          // The response is written and the socket FINed; a peer that never FINs back would
+          // otherwise hold the half-open socket for the life of the run.
+          const bury = setTimeout(() => client.destroy(), 2_000);
+          bury.unref();
+          client.once('close', () => clearTimeout(bury));
         }
         return;
       }

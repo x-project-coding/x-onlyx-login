@@ -100,6 +100,16 @@ const focusWindow = () => {
 // The run: one opened link, from claim to verdict.
 // ---------------------------------------------------------------------------------------------
 
+/**
+ * A run that is no longer the current one — or has already finished — must not act.
+ *
+ * Every `await` in this file is a place a second deep link can arrive: `teardown()` swaps `run` and
+ * marks the old one done while the old one is suspended mid-call. Checked after each one, because a
+ * resumed stale run would otherwise repaint the screen over the new run and, worse, complete an
+ * import against a pass the creator has already walked away from.
+ */
+const stale = (r) => r !== run || r.done;
+
 const fail = (r, message, err = null) => {
   if (r !== run || r.done) return;
   r.done = true;
@@ -190,6 +200,7 @@ const startConnect = async (claim) => {
   const ses = session.fromPartition(`onlyx-login-${r.id}-${Date.now()}`);
   r.session = ses;
   await ses.setProxy(r.forwarder.proxyConfig);
+  if (r !== run) return closeBrowser(r);
   ses.setUserAgent(opened.identity.userAgent, opened.identity.acceptLanguage ?? 'en-US,en;q=0.9');
   ses.setPermissionRequestHandler((_contents, permission, callback, details) => {
     const secure = typeof details?.requestingUrl === 'string' && details.requestingUrl.startsWith('https://');
@@ -290,7 +301,7 @@ const startConnect = async (claim) => {
 
 /** OnlyFans answered `/users/me`. Named a user = signed in; capture once the last cookies land. */
 const onMe = (r, me) => {
-  if (r !== run || r.done || !me) return;
+  if (stale(r) || !me) return;
   if (r.captured || r.settleTimer) return;
   if (r.refusedIds.has(me.id)) return;
   log(`run ${r.id}: OnlyFans named user ${me.id}${me.username ? ` (@${me.username})` : ''}`);
@@ -301,7 +312,7 @@ const onMe = (r, me) => {
 };
 
 const capture = async (r, me) => {
-  if (r !== run || r.done || !r.session || !r.identity) return;
+  if (stale(r) || !r.session || !r.identity) return;
   let cookies;
   try {
     cookies = await r.session.cookies.get({});
@@ -309,12 +320,16 @@ const capture = async (r, me) => {
     log(`run ${r.id}: cookies unreadable: ${String(err?.message ?? err).slice(0, 120)}`);
     return;
   }
+  // `closeBrowser` nulls `session` and `identity`, so a teardown during that read also makes the
+  // rest of this function a null dereference.
+  if (stale(r) || !r.identity) return;
   if (!hasLoginCookies(cookies)) {
     // Named, but the jar is not there yet: the next `/users/me` will try again.
     log(`run ${r.id}: named a user but the login cookies are not in the jar yet`);
     return;
   }
   const xbc = await r.identity.readXbc().catch(() => null);
+  if (stale(r)) return;
   const payload = buildSessionPayload(cookies, xbc);
   r.captured = true;
   setState({ phase: 'captured', username: r.account?.username ?? null });
@@ -324,7 +339,7 @@ const capture = async (r, me) => {
   try {
     result = await api.importSession(r.token, { session: payload, ofUserId: me.id, username: me.username });
   } catch (err) {
-    if (r !== run || r.done) return;
+    if (stale(r)) return;
     const code = err?.code;
     if (code === 'wrong_creator' || code === 'duplicate_account' || code === 'session_unusable') {
       // The pass is still open: she can sign out in the window and sign in with the right account.
@@ -338,7 +353,7 @@ const capture = async (r, me) => {
     }
     return fail(r, messageForImport(code), err);
   }
-  if (r !== run || r.done) return;
+  if (stale(r)) return;
   log(`run ${r.id}: session imported at ${result?.importedAt}; seat ${result?.seat ? `${result.seat.workerId}#${result.seat.seatIndex}` : 'pending'}`);
 
   // The browser has done its job. Closing it also closes the tunnel, which the API expects: a
@@ -352,11 +367,12 @@ const capture = async (r, me) => {
 };
 
 const poll = async (r, token) => {
-  if (r !== run || r.done) return;
+  if (stale(r)) return;
   let status;
   try {
     status = await api.status(token);
   } catch (err) {
+    if (stale(r)) return;
     if (err?.code === 'pass_invalid' || err?.status === 401) {
       // The pass ran out while the seat was still verifying. The import itself is safe on the
       // server; OnlyX will show the outcome to her manager.
@@ -372,7 +388,7 @@ const poll = async (r, token) => {
     }
     return;
   }
-  if (r !== run || r.done) return;
+  if (stale(r)) return;
   if (status.state === 'connected') {
     clearInterval(r.pollTimer);
     r.pollTimer = null;
