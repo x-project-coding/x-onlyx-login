@@ -21,3 +21,7 @@ jobs:
           bash test/e2e/run.sh
         env:
           ELECTRON_DISABLE_SANDBOX: '1'
+      - name: A PACKAGED build boots (asar, ESM entry, no test hooks)
+        run: bash test/e2e/packaged.sh
+        env:
+          ELECTRON_DISABLE_SANDBOX: '1'
