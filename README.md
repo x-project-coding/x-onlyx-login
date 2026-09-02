@@ -119,8 +119,13 @@ macOS Gatekeeper / Windows SmartScreen warn the creator on first open:
 | secret | what |
 | --- | --- |
 | `CSC_LINK`, `CSC_KEY_PASSWORD` | Developer ID Application certificate as a base64 `.p12`, and its password |
-| `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID` | notarization (the DMG is notarized only when these are present) |
+| `APPLE_API_KEY`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER` | notarization via an App Store Connect key — **the method Apple recommends** |
+| `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID` | notarization via an Apple ID instead; either full set works |
 | `WIN_CSC_LINK`, `WIN_CSC_KEY_PASSWORD` | Authenticode certificate as a base64 `.pfx`, and its password |
+
+Notarization needs **no flag**: electron-builder starts it as soon as one full set of Apple
+credentials is in the environment, and its `mac.notarize` option exists only to *disable* that. A
+workflow that passes `--config.mac.notarize=true` to "switch it on" is doing nothing.
 
 Downloads: release assets on a **private** repository need a GitHub login to download, so either
 keep this repository public (the app has no secrets in it) or copy each release's DMG/EXE to a

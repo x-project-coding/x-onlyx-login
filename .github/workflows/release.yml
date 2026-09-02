@@ -3,8 +3,11 @@
 # Signing and notarization read these repository secrets; without them the workflow still produces
 # installers, but unsigned ones, which macOS Gatekeeper and Windows SmartScreen warn about:
 #   CSC_LINK, CSC_KEY_PASSWORD               Developer ID Application certificate (.p12, base64) + password
-#   APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID   notarization
+#   notarization — EITHER of:
+#     APPLE_API_KEY, APPLE_API_KEY_ID, APPLE_API_ISSUER    (App Store Connect key; Apple's recommendation)
+#     APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID
 #   WIN_CSC_LINK, WIN_CSC_KEY_PASSWORD       Authenticode certificate (.pfx, base64) + password
+# Notarization turns itself on when one full set is present; there is no flag to pass.
 name: release
 on:
   push:
@@ -33,14 +36,22 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Notarization needs no flag: electron-builder runs it automatically as soon as one full set
+      # of Apple credentials is in the environment, and `mac.notarize` exists only to DISABLE it.
+      # An earlier version of this step passed `--config.mac.notarize=true` behind a shell
+      # conditional, which was a no-op dressed up as the thing that turned notarization on.
+      # Either credential set below works; the API key is the one Apple recommends.
       - name: Build, sign, notarize and publish the DMG
-        run: |
-          if [ -n "$APPLE_ID" ]; then NOTARIZE="--config.mac.notarize=true"; else NOTARIZE=""; fi
-          npx electron-builder --mac --publish always $NOTARIZE
+        run: npx electron-builder --mac --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          # Preferred: an App Store Connect API key.
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          # Or an Apple ID with an app-specific password.
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
