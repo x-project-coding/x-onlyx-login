@@ -13,6 +13,11 @@ export const resolveApiBase = ({ packaged, env = process.env }) => {
   return API_BASE;
 };
 
-/** Where a creator (or her manager) reads how to install the app, and what to do when it fails. */
-export const HELP_URL = 'https://onlyx.ai/connect-app';
+/**
+ * Help lives INSIDE the app, not behind a link.
+ *
+ * This shipped pointing at `https://onlyx.ai/connect-app`, which 404s — so the one button a stuck
+ * creator presses took her to a missing page. An installed app already has everything it needs to
+ * answer her, and it can answer without a connection, which is exactly the state she may be in.
+ */
 export const SUPPORT_EMAIL = 'support@onlyx.ai';

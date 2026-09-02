@@ -10,4 +10,10 @@ contextBridge.exposeInMainWorld('onlyx', {
   },
   close: () => ipcRenderer.send('action', 'close'),
   help: () => ipcRenderer.send('action', 'help'),
+  /** The app menu's Help item, which the page cannot see. */
+  onHelp: (listener) => {
+    const handler = () => listener();
+    ipcRenderer.on('help', handler);
+    return () => ipcRenderer.removeListener('help', handler);
+  },
 });

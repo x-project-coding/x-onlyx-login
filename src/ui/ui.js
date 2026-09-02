@@ -31,12 +31,60 @@
   const helpLine = () => {
     const a = document.createElement('a');
     a.href = '#';
-    a.textContent = 'Installation & help';
+    a.textContent = 'Help';
     a.addEventListener('click', (e) => {
       e.preventDefault();
-      window.onlyx.help();
+      openHelp();
     });
     return [a];
+  };
+
+  /**
+   * What a stuck creator actually needs, in the app, with no connection required.
+   *
+   * The Help button used to open `onlyx.ai/connect-app`, which 404s — so the one button a stuck
+   * person presses took her to a missing page. Everything below is answerable offline, because
+   * "cannot reach OnlyX" is one of the states she may be in when she presses it.
+   */
+  const HELP = [
+    ['Nothing happened when I clicked my link', 'Open OnlyX Login once from your Applications folder (Mac) or Start menu (Windows), then click the link again. Your browser will ask whether to open OnlyX Login — choose Open.'],
+    ['My link says it has expired', 'Links work once, and for 15 minutes. Ask your manager to send a new one — it takes them a second.'],
+    ['I signed in to the wrong account', 'Sign out inside the sign-in window and sign in again with the account your manager is expecting. You do not need a new link.'],
+    ['OnlyFans is asking for a selfie or a video check', 'That is normal. Allow the camera when your computer asks, and hold your face up to it as OnlyFans instructs. Nothing is recorded by OnlyX.'],
+    ['It says it cannot reach OnlyX', 'Check your internet connection and click the link again. If it keeps happening, tell your manager.'],
+  ];
+
+  let helpOpen = false;
+  const openHelp = () => {
+    helpOpen = true;
+    render(current);
+  };
+  const closeHelp = () => {
+    helpOpen = false;
+    render(current);
+  };
+
+  const renderHelp = () => {
+    body.dataset.mode = 'full';
+    const iconEl = $('full-icon');
+    iconEl.className = 'icon';
+    iconEl.textContent = '';
+    $('full-title').textContent = 'Help';
+    $('full-text').textContent = '';
+    $('full-detail').textContent = '';
+    const list = document.createElement('dl');
+    list.className = 'help';
+    for (const [q, a] of HELP) {
+      const dt = document.createElement('dt');
+      dt.textContent = q;
+      const dd = document.createElement('dd');
+      dd.textContent = a;
+      list.append(dt, dd);
+    }
+    $('full-actions').replaceChildren(list, button('Back', closeHelp, true));
+    const mail = document.createElement('span');
+    mail.textContent = 'Still stuck? Tell your manager, or write to support@onlyx.ai';
+    $('full-fine').replaceChildren(mail);
   };
 
   const tickClock = () => {
@@ -53,6 +101,7 @@
     current = state;
     clearInterval(clockTimer);
     clockTimer = null;
+    if (helpOpen) return renderHelp();
     const who = state.username ? `@${state.username}` : 'your account';
 
     switch (state.phase) {
@@ -101,7 +150,7 @@
           icon: { kind: 'bad', glyph: '!' },
           title: state.title ?? 'Something went wrong',
           text: state.detail ?? '',
-          actions: [button('Help', () => window.onlyx.help()), button('Close', () => window.onlyx.close(), true)],
+          actions: [button('Help', openHelp), button('Close', () => window.onlyx.close(), true)],
         });
       case 'idle':
       default:
@@ -115,7 +164,9 @@
     }
   };
 
-  $('bar-help').addEventListener('click', () => window.onlyx.help());
+  $('bar-help').addEventListener('click', openHelp);
+  // The app menu's Help item lives in the main process and reaches the page this way.
+  window.onlyx.onHelp?.(openHelp);
   window.onlyx.onState(render);
   render(current);
 })();

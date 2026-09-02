@@ -25,7 +25,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { OnlyxApi } from './api.js';
-import { HELP_URL, resolveApiBase } from './config.js';
+import { resolveApiBase } from './config.js';
 import { SCHEME, claimFromArgv, parseDeepLink } from './deep-link.js';
 import { attachIdentity } from './identity.js';
 import { messageForFailedConnect, messageForImport, messageForOpen, messageForTunnel } from './messages.js';
@@ -441,7 +441,7 @@ const buildMenu = () => {
     { role: 'windowMenu' },
     {
       role: 'help',
-      submenu: [{ label: 'Installation & help', click: () => void shell.openExternal(HELP_URL) }],
+      submenu: [{ label: 'OnlyX Login help', click: () => header?.webContents.send('help') }],
     },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
@@ -458,7 +458,7 @@ const handleClaim = (claim) => {
 
 ipcMain.on('action', (_event, name) => {
   if (name === 'close') win?.close();
-  else if (name === 'help') void shell.openExternal(HELP_URL);
+  else if (name === 'help') header?.webContents.send('help');
 });
 
 const gotLock = app.requestSingleInstanceLock();

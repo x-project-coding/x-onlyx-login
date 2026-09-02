@@ -6,25 +6,46 @@ app: click the link, sign in, see the success screen, close it.
 
 ## For creators — installing it
 
+> These steps are also **in the connect page itself** — the link your manager sends shows the ones
+> for your own computer, so nobody has to find this file.
+
 **macOS** (12 Monterey or newer, Intel or Apple silicon)
 
-1. Download `OnlyX-Login-<version>-mac.dmg` from the link your manager gives you.
-2. Open the DMG and drag **OnlyX Login** into **Applications**.
-3. Open it once from Applications (right-click → Open the first time if macOS asks). It shows a
-   welcome screen and can be closed again — it only needs to have been opened once.
+1. Download `OnlyX-Login-<version>-mac.dmg`.
+2. Double-click it in **Downloads**. A window opens with the OnlyX Login icon beside an
+   **Applications** folder.
+3. Drag **OnlyX Login** onto **Applications**. That is the install; you can then eject the disk image.
+4. Open it once from Applications or Launchpad. Opening it once is what lets a link start it later.
+5. **If macOS says it cannot check the app for malicious software:** press **Done** (not *Move to
+   Bin*), open **System Settings › Privacy & Security**, scroll to **Security**, and press **Open
+   Anyway** beside the OnlyX Login message, then confirm.
+   Two things people get wrong here: Control-click → Open **no longer works** — Apple disabled that
+   override in macOS Sequoia — and the *Open Anyway* button disappears about an hour after the
+   warning, so if it is gone, try opening the app again first.
 
 **Windows** (10 or 11, 64-bit)
 
-1. Download `OnlyX-Login-<version>-win.exe` from the link your manager gives you.
-2. Run it. It installs for your user in a few seconds and opens once; close it.
+1. Download `OnlyX-Login-<version>-win.exe`. If the browser warns that the file is not commonly
+   downloaded, choose **Keep**.
+2. Double-click it in **Downloads**.
+3. **If Windows says "Windows protected your PC":** press **More info** — the small link inside the
+   message — then **Run anyway**. The button only appears after More info.
+4. It installs for your user in a few seconds and opens itself.
 
-Then click the connect link from your manager (it starts with `onlyx-connect://`). OnlyX Login opens
-on the OnlyFans sign-in page. Sign in as usual — with your password, email code, and the camera
-check if OnlyFans asks for one — and wait for the **Connected** screen.
+Steps 5 and 3 are the unsigned-build path: once the installers are signed and notarised (see
+*Releasing*), neither warning appears.
 
-If the link opens nothing, the app has not been installed or opened yet: install it, open it once,
-then click the link again. Links work **once** and for **15 minutes**; ask for a new one if it has
-expired.
+Then click the connect link from your manager (it starts with `onlyx-connect://`). Your browser asks
+whether to open OnlyX Login — choose **Open**. The app opens on the OnlyFans sign-in page; sign in as
+usual — password, email code, and the camera check if OnlyFans asks for one — and wait for the
+**Connected** screen.
+
+If the link opens nothing at all, the app has not been installed or opened yet: a custom link fails
+silently when nothing is registered to handle it. Install it, open it once, then click the link
+again. Links work **once** and for **15 minutes**; ask for a new one if it has expired.
+
+Help is **inside the app** (the Help button, or the Help menu) — there is no external help page to
+depend on, and it answers without a connection.
 
 ## What the app does, and does not do
 
