@@ -111,7 +111,10 @@ brand's. It is run against the source tree in CI; it was also verified against a
 ### Releasing
 
 Push a tag: `git tag v1.0.1 && git push origin v1.0.1`. The `release` workflow builds a universal
-DMG and an x64 NSIS installer and attaches them to a GitHub release.
+DMG and an x64 NSIS installer and attaches them to a **draft** GitHub release — the two jobs run in
+parallel, so the release stays a draft until you have checked both installers are attached and
+publish it yourself. A live release carrying only one platform is worse than no release: the
+connect page would offer a download that does not exist for half of them.
 
 Signing needs these repository secrets; without them the installers are produced **unsigned**, and
 macOS Gatekeeper / Windows SmartScreen warn the creator on first open:

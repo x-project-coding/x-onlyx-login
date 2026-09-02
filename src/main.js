@@ -202,15 +202,53 @@ const startConnect = async (claim) => {
   await ses.setProxy(r.forwarder.proxyConfig);
   if (r !== run) return closeBrowser(r);
   ses.setUserAgent(opened.identity.userAgent, opened.identity.acceptLanguage ?? 'en-US,en;q=0.9');
+  // Raised to her screen rather than swallowed: the sign-in window stays open, because the rest of
+  // the sign-in still works and only the selfie step is blocked.
+  const onMediaBlocked = (kinds) => {
+    if (r !== run || r.done || r.mediaWarned) return;
+    r.mediaWarned = true;
+    log(`run ${r.id}: macOS is blocking ${kinds.join(' and ')} for this app`);
+    setState({
+      phase: 'signin',
+      username: r.account?.username ?? null,
+      expiresAt: r.expiresAt,
+      notice: {
+        title: `Your Mac is blocking the ${kinds.join(' and ')}`,
+        detail:
+          'Open System Settings › Privacy & Security › Camera, switch on OnlyX Login, then open your link again. macOS only asks once, so it will not prompt you a second time.',
+      },
+    });
+  };
+
   ses.setPermissionRequestHandler((_contents, permission, callback, details) => {
     const secure = typeof details?.requestingUrl === 'string' && details.requestingUrl.startsWith('https://');
     if (permission === 'media' && secure) {
-      // The selfie check. On macOS the system asks once, app-wide; ask before the page does so a
-      // refusal lands on our screen and not inside the vendor's iframe.
+      // The selfie check. On macOS the system asks ONCE, app-wide and for ever: a creator who
+      // clicks "Don't Allow" — a reflexive click — is refused by `askForMediaAccess` on every run
+      // after, with no second prompt. Silently denying her then kills the identity check inside the
+      // vendor's iframe, where she cannot see why, and "allow the camera when your computer asks"
+      // becomes a lie: it will never ask again. So a standing denial is DETECTED and surfaced with
+      // the one instruction that recovers it.
       if (process.platform === 'darwin' && typeof systemPreferences?.askForMediaAccess === 'function') {
-        void systemPreferences
-          .askForMediaAccess('camera')
-          .then((granted) => callback(granted !== false))
+        // Ask for what the page actually wants; the mic usage string and entitlement exist, and
+        // hard-coding 'camera' would leave an audio track failing with the prompt never shown.
+        const wanted = Array.isArray(details?.mediaTypes) && details.mediaTypes.length
+          ? details.mediaTypes
+          : ['video'];
+        const kinds = [...new Set(wanted.map((t) => (t === 'audio' ? 'microphone' : 'camera')))];
+        if (typeof systemPreferences.getMediaAccessStatus === 'function') {
+          const blocked = kinds.filter((k) => systemPreferences.getMediaAccessStatus(k) === 'denied');
+          if (blocked.length) {
+            onMediaBlocked?.(blocked);
+            return callback(false);
+          }
+        }
+        void Promise.all(kinds.map((k) => systemPreferences.askForMediaAccess(k)))
+          .then((results) => {
+            const granted = results.every((ok) => ok !== false);
+            if (!granted) onMediaBlocked?.(kinds);
+            callback(granted);
+          })
           .catch(() => callback(true));
         return;
       }
@@ -313,6 +351,20 @@ const onMe = (r, me) => {
 
 const capture = async (r, me) => {
   if (stale(r) || !r.session || !r.identity) return;
+  // CLAIMED SYNCHRONOUSLY, before the first await. `captured` is only set once the jar is in hand,
+  // and OnlyFans polls `/users/me` often enough that a second answer arriving during the cookie
+  // read, the token retries or the import itself would clear every later guard and import twice on
+  // a single-use token. Released on every path that does not reach the import.
+  if (r.capturing) return;
+  r.capturing = true;
+  try {
+    await captureInner(r, me);
+  } finally {
+    r.capturing = false;
+  }
+};
+
+const captureInner = async (r, me) => {
   let cookies;
   try {
     cookies = await r.session.cookies.get({});
@@ -523,10 +575,10 @@ if (!gotLock) {
     if (claim) handleClaim(claim);
   });
 
-  app.on('activate', () => {
-    if (!win) createWindow();
-  });
-
+  // Quits on every platform, macOS included. This is a single-shot utility opened BY a link, not an
+  // app to keep in the dock: with nothing on screen there is nothing for it to do, and a link
+  // cold-starts it again in a second. There is deliberately no `activate` handler — one could never
+  // fire, since the process is gone by the time the dock icon could be clicked.
   app.on('window-all-closed', () => {
     app.quit();
   });

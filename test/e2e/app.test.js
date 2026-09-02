@@ -57,7 +57,7 @@ const waitForPhase = async (file, phases, { timeoutMs = 60_000, exitedRef = () =
   return { hit: null, states: readStates(file) };
 };
 
-test('a link opens, signs in, imports the session, and reaches success', async () => {
+test(`a link opens, signs in, imports the session, and reaches success${process.env.ONLYX_TEST_PACKAGED_BIN ? ' (PACKAGED build)' : ''}`, async () => {
   const cert = makeCert();
   const claim = 'e2eClaim_0123456789';
   const of = await startFakeOnlyFans({ key: cert.key, cert: cert.cert });
@@ -65,10 +65,17 @@ test('a link opens, signs in, imports the session, and reaches success', async (
   const api = await startFakeApi({ tunnelPort: tunnel.port, userAgent: MAC_UA, claim });
 
   const stateFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'onlyx-e2e-state-')), 'states.jsonl');
-  const electron = require('electron'); // resolves to the binary path string
+  // ONLYX_TEST_PACKAGED_BIN points at a packed build's executable. Without it this drives the
+  // source tree, which is the same code but NOT the same loading: a packaged app resolves its ESM
+  // entry and its CommonJS `ws` dependency from inside an asar archive, and a failure there is a
+  // silent no-window boot that no source-tree run can catch.
+  const packagedBin = process.env.ONLYX_TEST_PACKAGED_BIN || null;
+  const electron = packagedBin ?? require('electron'); // resolves to the binary path string
   const child = spawn(
     electron,
-    ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', appDir, `onlyx-connect://open?c=${claim}`],
+    packagedBin
+      ? ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', `onlyx-connect://open?c=${claim}`]
+      : ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', appDir, `onlyx-connect://open?c=${claim}`],
     {
       cwd: appDir,
       env: {

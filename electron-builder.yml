@@ -53,4 +53,8 @@ publish:
   provider: github
   owner: x-project-coding
   repo: x-onlyx-login
-  releaseType: release
+  # DRAFT, because the mac and windows jobs run in parallel and both publish. As a `release` the
+  # first to finish would create a LIVE release carrying only its own installer, and a creator
+  # following the download link during that window — or after the other job failed — would find
+  # her platform missing. A draft collects both, and a human publishes when both are attached.
+  releaseType: draft
