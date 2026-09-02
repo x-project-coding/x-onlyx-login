@@ -1,0 +1,13 @@
+// The header page's only bridge to the app. It sees state and can ask for three things; it has no
+// access to Node, the sign-in view, or anything the creator types.
+const { contextBridge, ipcRenderer } = require('electron');
+
+contextBridge.exposeInMainWorld('onlyx', {
+  onState: (listener) => {
+    const handler = (_event, state) => listener(state);
+    ipcRenderer.on('state', handler);
+    return () => ipcRenderer.removeListener('state', handler);
+  },
+  close: () => ipcRenderer.send('action', 'close'),
+  help: () => ipcRenderer.send('action', 'help'),
+});

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'self'; img-src data:">
+<title>OnlyX Login</title>
+<style>
+  :root {
+    --bg: #0f172a; --panel: #111c33; --line: #23304d; --text: #e6ebf5; --muted: #93a0bd;
+    --accent: #6ea8fe; --ok: #34d399; --warn: #fbbf24; --bad: #fb7185;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-user-select: none; user-select: none; overflow: hidden;
+  }
+  .brand { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; letter-spacing: .2px; }
+  .brand .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px rgba(110,168,254,.18); }
+
+  /* Bar mode: the 56px strip above the sign-in browser. */
+  #bar { display: none; height: 56px; padding: 0 16px; align-items: center; gap: 14px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  body[data-mode="bar"] #bar { display: flex; }
+  #bar .who { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #bar .who b { color: var(--text); font-weight: 600; }
+  #bar .notice { display: none; flex: 1; min-width: 0; padding: 6px 10px; border-radius: 8px; background: rgba(251,191,36,.12); color: var(--warn); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #bar .notice.on { display: block; }
+  #bar .spacer { flex: 1; }
+  #bar .clock { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #bar .clock.late { color: var(--warn); }
+
+  /* Full mode: the app on its own. */
+  #full { display: none; height: 100%; align-items: center; justify-content: center; padding: 32px; }
+  body[data-mode="full"] #full { display: flex; }
+  .card { width: min(520px, 100%); text-align: center; }
+  .card .brand { margin-bottom: 28px; font-size: 18px; }
+  .icon { width: 72px; height: 72px; margin: 0 auto 20px; border-radius: 50%; display: grid; place-items: center; font-size: 34px; }
+  .icon.spin { border: 4px solid var(--line); border-top-color: var(--accent); animation: spin 1s linear infinite; }
+  .icon.ok { background: rgba(52,211,153,.15); color: var(--ok); }
+  .icon.bad { background: rgba(251,113,133,.15); color: var(--bad); }
+  .icon.idle { background: rgba(110,168,254,.15); color: var(--accent); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  h1 { font-size: 22px; margin: 0 0 10px; font-weight: 700; }
+  p { margin: 0; color: var(--muted); font-size: 15px; }
+  p.detail { margin-top: 6px; }
+  .actions { margin-top: 26px; display: flex; gap: 10px; justify-content: center; }
+  button { font: inherit; padding: 9px 16px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--text); cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #07101f; font-weight: 600; }
+  button:hover { filter: brightness(1.08); }
+  .fine { margin-top: 22px; font-size: 12px; color: var(--muted); }
+  a { color: var(--accent); }
+</style>
+</head>
+<body data-mode="full">
+  <div id="bar">
+    <span class="brand"><span class="dot"></span>OnlyX Login</span>
+    <span class="who" id="bar-who"></span>
+    <span class="notice" id="bar-notice"></span>
+    <span class="spacer"></span>
+    <span class="clock" id="bar-clock" title="How long this link stays open"></span>
+    <button id="bar-help" type="button">Help</button>
+  </div>
+  <div id="full">
+    <div class="card">
+      <div class="brand"><span class="dot"></span>OnlyX Login</div>
+      <div class="icon" id="full-icon"></div>
+      <h1 id="full-title"></h1>
+      <p id="full-text"></p>
+      <p class="detail" id="full-detail"></p>
+      <div class="actions" id="full-actions"></div>
+      <div class="fine" id="full-fine"></div>
+    </div>
+  </div>
+  <script src="./ui.js"></script>
+</body>
+</html>

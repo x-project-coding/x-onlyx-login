@@ -1,0 +1,31 @@
+{
+  "name": "onlyx-login",
+  "productName": "OnlyX Login",
+  "version": "1.0.0",
+  "description": "Sign in to OnlyFans for your OnlyX-managed account, on your own computer.",
+  "main": "src/main.js",
+  "type": "module",
+  "private": true,
+  "license": "UNLICENSED",
+  "author": "OnlyX <support@onlyx.ai>",
+  "homepage": "https://onlyx.ai",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/*.test.js",
+    "test:e2e": "node --test test/e2e/app.test.js",
+    "pack": "electron-builder --dir",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win",
+    "test:e2e:docker": "docker build -f test/e2e/Dockerfile -t onlyx-login-e2e . && docker run --rm --shm-size=1g onlyx-login-e2e"
+  },
+  "dependencies": {
+    "ws": "8.21.3"
+  },
+  "devDependencies": {
+    "electron": "44.1.1",
+    "electron-builder": "26.15.3"
+  }
+}

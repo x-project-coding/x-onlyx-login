@@ -1,0 +1,56 @@
+appId: ai.onlyx.login
+productName: OnlyX Login
+copyright: OnlyX
+directories:
+  output: dist
+  buildResources: build
+files:
+  - package.json
+  - src/**/*
+asar: true
+# The link the app is opened from. Registered by the installer on Windows and by the bundle's
+# Info.plist on macOS, so a fresh install answers `onlyx-connect://` without ever being launched.
+protocols:
+  - name: OnlyX Connect
+    schemes:
+      - onlyx-connect
+mac:
+  category: public.app-category.productivity
+  target:
+    - target: dmg
+      arch:
+        - universal
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  extendInfo:
+    NSCameraUsageDescription: OnlyFans may ask you to confirm your identity with your camera while you sign in.
+    NSMicrophoneUsageDescription: OnlyFans may ask for your microphone while you confirm your identity.
+  artifactName: OnlyX-Login-${version}-mac.${ext}
+dmg:
+  sign: false
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  artifactName: OnlyX-Login-${version}-win.${ext}
+nsis:
+  oneClick: true
+  perMachine: false
+  allowToChangeInstallationDirectory: false
+  deleteAppDataOnUninstall: true
+  shortcutName: OnlyX Login
+publish:
+  provider: github
+  owner: x-project-coding
+  repo: x-onlyx-login
+  releaseType: release
