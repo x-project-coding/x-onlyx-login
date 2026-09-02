@@ -20,7 +20,7 @@ const jsonResponse = (status, body) => ({
   text: async () => (body === undefined ? '' : JSON.stringify(body)),
 });
 
-test('open posts the claim and app metadata, returns the parsed body', async () => {
+test('open posts the claim, the app metadata and this build\'s capabilities', async () => {
   const fetch = stubFetch(() => jsonResponse(200, { sessionToken: 'T', account: { username: 'c' } }));
   const api = new OnlyxApi('https://of-api.onlyx.ai/', { fetch, appVersion: '1.0.0', platform: 'darwin-arm64' });
   const out = await api.open('claim123456');
@@ -28,7 +28,14 @@ test('open posts the claim and app metadata, returns the parsed body', async () 
   const { url, opts } = fetch.calls[0];
   assert.equal(url, 'https://of-api.onlyx.ai/connect-app/open'); // trailing slash trimmed
   assert.equal(opts.method, 'POST');
-  assert.deepEqual(JSON.parse(opts.body), { claim: 'claim123456', appVersion: '1.0.0', platform: 'darwin-arm64' });
+  // `caps` is what lets the server tell this build from v1.1.0 and offer it the honest identity;
+  // without it every install would keep the seat's, whatever the server was configured to do.
+  assert.deepEqual(JSON.parse(opts.body), {
+    claim: 'claim123456',
+    appVersion: '1.0.0',
+    platform: 'darwin-arm64',
+    caps: ['nativeIdentity'],
+  });
   assert.equal(opts.headers['content-type'], 'application/json');
 });
 

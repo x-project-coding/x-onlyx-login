@@ -78,7 +78,11 @@ test('offered no tunnel, the app signs in DIRECTLY — no forwarder bound — an
   const child = spawn(
     electron,
     [
-      '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage',
+      // `--enable-unsafe-swiftshader` beside `--disable-gpu`: with neither there is NO WebGL
+      // context in this container, `getParameter` is never reached, and the assertions below
+      // about the renderer pin pass on `undefined` — a guard that is void exactly where it
+      // matters. Measured: without it `probe.webgl` came back null in both directions.
+      '--no-sandbox', '--disable-gpu', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage',
       // The hermetic stand-in for public DNS: Chromium itself resolves onlyfans.com here, straight
       // to the fake — the app is given no proxy to aim anywhere.
       `--host-resolver-rules=MAP onlyfans.com 127.0.0.1:${of.port}`,
@@ -138,4 +142,29 @@ test('offered no tunnel, the app signs in DIRECTLY — no forwarder bound — an
   const names = imported.session.cookies.map((c) => c.name);
   assert.ok(names.includes('sess') && names.includes('auth_id'), `login cookies present: ${names.join(',')}`);
   assert.equal(imported.session.xbc, '0123456789abcdef0123456789abcdef01234567');
+
+  // SEAT MODE STILL WEARS THE SEAT, and this is the other half of native-identity.test.js: every
+  // field that test asserts is absent is asserted PRESENT here, on the same fake and the same
+  // engine. Without it, a native test could pass because the app applies nothing at all, on any
+  // instruction — which is exactly how a guard ends up inert.
+  const deadline = Date.now() + 20_000;
+  while (!of.state.probe && Date.now() < deadline) await sleep(200);
+  const probe = of.state.probe;
+  assert.ok(probe, 'the page never reported what it was');
+  assert.equal(probe.descriptors.hardwareConcurrency, 'patched', 'the seat pins were not applied');
+  assert.equal(probe.descriptors.deviceMemory, 'patched');
+  assert.equal(probe.hardwareConcurrency, 8);
+  assert.equal(probe.deviceMemory, 8);
+  // The patched getParameter answers the unmasked vendor with the extension never obtained; the
+  // native run asserts the engine's null in the same place.
+  assert.ok(probe.webgl && !probe.webgl.error, `no WebGL context to judge: ${JSON.stringify(probe.webgl)}`);
+  assert.equal(probe.webgl?.vendorUnasked, 'Google Inc. (Apple)');
+  assert.ok(!/\[native code\]/.test(String(probe.webgl?.getParameterSource)), 'getParameter was not patched');
+  // And the served Accept-Language really does become a language tag no browser has.
+  assert.ok(
+    (probe.languages ?? []).some((l) => /;q=/.test(l)),
+    `expected the seat's language string to leak into navigator.languages: ${JSON.stringify(probe.languages)}`,
+  );
+  const seatUa = of.state.requests.filter((r) => r.headers['user-agent']).at(-1).headers['user-agent'];
+  assert.equal(seatUa, MAC_UA, 'seat mode must send the seat User-Agent, byte for byte');
 });

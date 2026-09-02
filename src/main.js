@@ -47,6 +47,7 @@ import {
   redactUrl,
 } from './diagnostics.js';
 import { attachIdentity } from './identity.js';
+import { cleanUserAgent, isNative } from './native-identity.js';
 import { messageForFailedConnect, messageForImport, messageForOpen, messageForTunnel } from './messages.js';
 import { buildSessionPayload, hasLoginCookies } from './session-capture.js';
 import { startForwarder } from './tunnel.js';
@@ -349,6 +350,13 @@ const adoptPopup = (r, child, details) => {
   // Its first document is already being created, so the pins reach the popup's NEXT document while
   // the user-agent override and its client hints apply from its next request; a popup carrying
   // Electron's own fingerprint beside a pinned opener would be a contradiction of its own.
+  //
+  // IN NATIVE MODE THERE IS NOTHING TO CARRY, and that is not a gap. The honest identity is the
+  // SESSION's user agent (see the note beside `ses.setUserAgent`), and a page-opened window
+  // inherits its opener's session — which `kill('foreign-session')` above is what guarantees. So a
+  // native popup is born matching its opener on the first document, with no second leg needed;
+  // `attachIdentity` still runs, and still installs the WebAuthn hardening, which is the one thing
+  // a popup must not be born without.
   if (!r.identitySpec) return;
   void attachIdentity(contents, r.identitySpec, {
     onMe: (me) => onMe(r, me),
@@ -411,7 +419,10 @@ const startConnect = async (claim) => {
   r.account = opened.account;
   r.expiresAt = opened.expiresAt;
   r.identitySpec = opened.identity;
-  log(`run ${r.id}: pass opened for @${opened.account?.username} (${opened.identity?.profile} profile)`);
+  log(
+    `run ${r.id}: pass opened for @${opened.account?.username} ` +
+      `(${opened.identity?.profile} profile, ${isNative(opened.identity) ? 'this machine' : 'seat'} identity)`,
+  );
   record('run-open', {
     run: r.id,
     username: opened.account?.username ?? null,
@@ -419,6 +430,12 @@ const startConnect = async (claim) => {
     // The identity itself is the other half of a vendor's device check, so its SHAPE is recorded:
     // never the pass token, never a cookie — a user agent, a platform, and the LENGTH of the pin
     // script, which is all that is needed to tell "the pins were applied" from "they were not".
+    //
+    // `identitySource` is the field that says which question the rest of this line is answering.
+    // In `native` the server sends no claims at all, so `userAgent` is the empty string, `platform`
+    // and `timezone` are null and `initScriptChars` is 0 — a row that would read as "the server
+    // sent nothing" without it, when it means "the app was told to be itself".
+    identitySource: opened.identity?.source ?? 'seat',
     userAgent: opened.identity?.userAgent ?? null,
     platform: opened.identity?.platform ?? null,
     timezone: opened.identity?.timezone ?? null,
@@ -469,7 +486,28 @@ const startConnect = async (claim) => {
   // one), which is the same route her everyday browser takes and therefore the network the
   // vendor's phone check is comparing against. Forcing mode:'direct' here would instead strand
   // any creator whose machine can only reach the internet through a configured proxy.
-  ses.setUserAgent(opened.identity.userAgent, opened.identity.acceptLanguage ?? 'en-US,en;q=0.9');
+  // THE ONE PLACE THE USER-AGENT IS SET, and it has to be HERE — before the view below exists.
+  //
+  // Measured 2026-09-02: a renderer takes its `navigator.userAgent` when it is created, and
+  // `session.setUserAgent` after that moves only the outgoing header. Setting it later left the
+  // page saying `Electron/44.1.1` while the wire said Chrome — a contradiction manufactured by the
+  // code that exists to remove them. It is also the only half a SERVICE WORKER reads, and OnlyFans
+  // registers one, so a page-level CDP override could never stand in for it.
+  //
+  // In native mode the honest string is this engine's own with the app and Electron tokens taken
+  // out and the version reduced (native-identity.js) — no page needed to work it out, which is why
+  // it can happen this early. In seat mode it is whatever the server sent, exactly as before.
+  if (isNative(opened.identity)) {
+    const clean = cleanUserAgent(ses.getUserAgent());
+    // Untouched rather than mangled: an `Electron/` token is a tell, but a User-Agent this code
+    // half-rewrote is a tell AND a mystery. No `acceptLanguage` either — the machine's own is the
+    // only well-formed answer, and the seat's `en-US,en;q=0.9` becomes the language TAG
+    // `en;q=0.9` once it goes through these APIs (measured).
+    if (clean) ses.setUserAgent(clean);
+    log(`run ${r.id}: native identity: ${clean ?? `${ses.getUserAgent()} (uncleanable, left alone)`}`);
+  } else {
+    ses.setUserAgent(opened.identity.userAgent, opened.identity.acceptLanguage ?? 'en-US,en;q=0.9');
+  }
   // Raised to her screen rather than swallowed: the sign-in window stays open, because the rest of
   // the sign-in still works and only the selfie step is blocked.
   const onMediaBlocked = (kinds) => {

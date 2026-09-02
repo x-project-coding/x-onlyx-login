@@ -49,8 +49,14 @@ depend on, and it answers without a connection.
 
 ## What the app does, and does not do
 
-- The sign-in happens in a private browser window inside the app, wearing the same browser identity
-  OnlyX uses for the account afterwards — so OnlyFans sees one device signing in, not two.
+- The sign-in happens in a private browser window inside the app. **Which browser it claims to be is
+  the OnlyX server's decision**, and the app follows it with no update on your side:
+  - *your own computer* (the default) — the window presents the machine it is running on, and
+    nothing else. It states no invented processor count, no invented graphics card and no invented
+    version. Painting OnlyX's server identity over a real laptop is what produced a captcha on
+    every sign-in, because the two never agreed.
+  - *the OnlyX identity* — the older behaviour, where the window wears the browser OnlyX uses for
+    the account afterwards, so OnlyFans sees one device across both.
 - The sign-in normally uses **your own internet connection**, like any browser on your computer.
   OnlyFans' identity check pairs your computer with your phone and insists both are on the same
   network, which only your own connection can satisfy. (The OnlyX server can switch the app back to
@@ -91,9 +97,11 @@ Layout:
 | --- | --- |
 | `src/main.js` | the flow: link → open pass → tunnel (only if the server offers one) → sign-in view → capture → import → verify |
 | `src/tunnel.js` | a loopback `CONNECT` proxy that carries each stream over the API's WebSocket tunnel; not started when the open answer says `tunnel: null` |
-| `src/identity.js` | applies the seat's identity to the sign-in view over the DevTools protocol, watches `/users/me` |
+| `src/identity.js` | applies the identity the server chose to the sign-in view over the DevTools protocol, watches `/users/me` |
+| `src/native-identity.js` | the honest identity: this engine's own User-Agent with the Electron and app tokens removed and the version reduced |
 | `src/session-capture.js` | which cookies to take, how to shape the payload; the WebAuthn refusal script |
 | `src/diagnostics.js` | the opt-in record of what the sign-in view was allowed to do (see *Diagnosing a failed sign-in*) |
+| `test/e2e/identity-probe.cjs` | a measurement fixture: what each half of a served identity does to the wire and to the page |
 | `src/api.js`, `src/messages.js` | the three API calls; what the creator reads for every failure |
 | `src/ui/` | the app's own screens (header bar while signing in, full-window otherwise) |
 | `src/ui/fonts/` | Public Sans (SIL OFL), bundled so the app looks right offline and makes no third-party request |
