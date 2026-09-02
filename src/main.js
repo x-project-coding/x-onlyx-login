@@ -400,7 +400,7 @@ const createWindow = () => {
     minWidth: 720,
     minHeight: 520,
     title: 'OnlyX Login',
-    backgroundColor: '#0f172a',
+    backgroundColor: '#0b0b0f',   // the brand canvas, so the window never flashes a foreign colour
     show: false,
     autoHideMenuBar: true,
   });

@@ -17,8 +17,9 @@
   const renderFull = ({ icon, title, text, detail, actions, fine }) => {
     body.dataset.mode = 'full';
     const iconEl = $('full-icon');
-    iconEl.className = `icon ${icon.kind}`;
-    iconEl.textContent = icon.glyph ?? '';
+    // 'mark' is the OnlyX ring itself — used on the idle screen, where the product is what to show.
+    iconEl.className = icon.kind === 'mark' ? 'mark lg' : `icon ${icon.kind}`;
+    iconEl.textContent = icon.kind === 'mark' ? '' : (icon.glyph ?? '');
     $('full-title').textContent = title;
     $('full-text').textContent = text ?? '';
     $('full-detail').textContent = detail ?? '';
@@ -105,7 +106,7 @@
       case 'idle':
       default:
         return renderFull({
-          icon: { kind: 'idle', glyph: '→' },
+          icon: { kind: 'mark' },
           title: 'Open the link your manager sent you',
           text: 'OnlyX Login opens by itself when you click a connect link. There is nothing to set up here.',
           actions: [],

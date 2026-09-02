@@ -70,8 +70,22 @@ Layout:
 | `src/session-capture.js` | which cookies to take, how to shape the payload; the WebAuthn refusal script |
 | `src/api.js`, `src/messages.js` | the three API calls; what the creator reads for every failure |
 | `src/ui/` | the app's own screens (header bar while signing in, full-window otherwise) |
+| `src/ui/fonts/` | Public Sans (SIL OFL), bundled so the app looks right offline and makes no third-party request |
 
 The server side lives in `x-onlyfans` (`apps/api/src/modules/connect-app/`).
+
+### Branding
+
+The app carries OnlyX's own identity, not an approximation: the accent is **`#00AEEF`** — the blue
+sampled from the OnlyFans mark, the same one `app.onlyx.ai` and the creator's connect page use — the
+mark is the product's ring on a near-black disc (`public/favicon.svg` in `x-onlyx-ui`), and the
+typeface is **Public Sans**, bundled rather than fetched so it renders before the app has a
+connection and no request goes to a third party.
+
+`test/e2e/branding.test.js` is the guard: a bundled font the page's CSP refuses on a `file://`
+origin falls back to Helvetica silently, and a packaged app resolves its assets out of an asar
+archive — so the test loads the real page and asserts the face actually loaded and the accent is the
+brand's. It is run against the source tree in CI; it was also verified against a packed asar.
 
 ### Releasing
 

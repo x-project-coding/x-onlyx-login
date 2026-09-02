@@ -13,4 +13,4 @@ trap 'kill "$XVFB_PID" 2>/dev/null || true' EXIT
 export DISPLAY=:99
 for _ in $(seq 1 50); do [ -S /tmp/.X11-unix/X99 ] && break; sleep 0.1; done
 
-exec node --test test/e2e/app.test.js
+exec node --test test/e2e/app.test.js test/e2e/branding.test.js
