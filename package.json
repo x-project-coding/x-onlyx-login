@@ -15,7 +15,7 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test test/*.test.js",
-    "test:e2e": "node --test test/e2e/app.test.js test/e2e/branding.test.js",
+    "test:e2e": "node -e \"require('electron')\" && node --test --test-concurrency=1 test/e2e/app.test.js test/e2e/branding.test.js",
     "pack": "electron-builder --dir",
     "dist:mac": "electron-builder --mac",
     "dist:win": "electron-builder --win",

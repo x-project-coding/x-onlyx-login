@@ -13,4 +13,12 @@ trap 'kill "$XVFB_PID" 2>/dev/null || true' EXIT
 export DISPLAY=:99
 for _ in $(seq 1 50); do [ -S /tmp/.X11-unix/X99 ] && break; sleep 0.1; done
 
-exec node --test test/e2e/app.test.js test/e2e/branding.test.js
+# electron 44 ships NO postinstall: the binary is downloaded lazily, by whoever requires it first.
+# Two test files that both spawn Electron therefore race on that download, and the loser execs a
+# half-written file — `spawnSync ... ETXTBSY`. Fetch it once, here, before any test runs.
+# (This passed for a long time only because the Docker image bakes the binary in and CI does not.)
+node -e "require('electron')" >/dev/null
+
+# Serial as well: these drive a real browser under one display, and they are clearer to read when
+# one finishes before the next starts.
+exec node --test --test-concurrency=1 test/e2e/app.test.js test/e2e/branding.test.js
