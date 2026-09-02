@@ -31,7 +31,16 @@ echo "[packaged] binary=$BIN asar=$(stat -c%s "$ASAR") bytes"
 
 # Never let a test build reach the real API. The compiled-in host resolves to loopback, where
 # nothing is listening, so the run ends in a connection error instead of a request to production.
-grep -q "of-api.onlyx.ai" /etc/hosts || echo "127.0.0.1 of-api.onlyx.ai" >> /etc/hosts
+if ! grep -q "of-api.onlyx.ai" /etc/hosts; then
+  if [ -w /etc/hosts ]; then
+    echo "127.0.0.1 of-api.onlyx.ai" >> /etc/hosts
+  elif command -v sudo >/dev/null 2>&1; then
+    echo "127.0.0.1 of-api.onlyx.ai" | sudo tee -a /etc/hosts >/dev/null
+  else
+    # Refuse rather than run a packed build that would reach the real API with a junk claim.
+    echo "[packaged] cannot pin the API host to loopback — refusing to run"; exit 1
+  fi
+fi
 
 OUT=/tmp/packaged-run.log
 set +e
