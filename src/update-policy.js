@@ -19,8 +19,8 @@
  * - macOS without a certificate-backed signature (ad-hoc or none): never. Squirrel.Mac refuses to
  *   install an update onto such a build, so checking would download an update, promise it on
  *   screen, and then fail at the only step that matters. `signed` comes from probing the RUNNING
- *   binary (main.js), not from a build flag — so the day a Developer ID-signed build ships, that
- *   build probes true and updates arm themselves with no code change.
+ *   binary (main.js), not from a build flag — so a Developer ID-signed release probes true and
+ *   updates arm themselves with no code change.
  * - Windows: NSIS installs updates without a signature, so `signed` is not consulted there.
  */
 export const updateCheckVerdict = ({ packaged, platform, signed }) => {

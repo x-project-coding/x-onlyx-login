@@ -51,11 +51,10 @@
    */
   const HELP = [
     ['Nothing happened when I clicked my link', 'Open OnlyX Login once from your Applications folder (Mac) or Start menu (Windows), then click the link again. Your browser will ask whether to open OnlyX Login — choose Open.'],
-    // True while releases are unsigned. Two facts here save a creator from advice the internet
-    // still gives: Sequoia removed the right-click→Open escape hatch, and "Open Anyway" is only
-    // offered for about an hour after a blocked attempt — after that the button simply is not
-    // there, which reads as "my Mac has no such setting" unless she knows to relaunch the app.
-    ['My computer shows a warning the first time I open the app', 'That is expected for now — this version is not yet registered with Apple or Microsoft, so new computers play it safe. Windows: click “More info”, then “Run anyway”. Mac: close the warning, open System Settings → Privacy & Security, scroll down and click “Open Anyway” (right-click → Open does not work on newer Macs). The button appears for about an hour after the warning — if it is missing, open the app once more and look again.'],
+    // Mac releases are Developer ID-signed and notarised from v1.3.1. A Gatekeeper warning on an
+    // official current build therefore means the copy is old, incomplete or not the release we
+    // produced; do not teach a creator to override that signal. Windows remains unsigned for now.
+    ['My computer shows a warning the first time I open the app', 'Mac: delete that copy and install the latest version from the OnlyX connect link your manager sent you. The current Mac release is signed and checked by Apple, so do not use Open Anyway for a fresh official download — tell your manager if it still warns. Windows: click “More info”, then “Run anyway”.'],
     ['My link says it has expired', 'Links work once, and for 15 minutes. Ask your manager to send a new one — it takes them a second.'],
     ['I signed in to the wrong account', 'Sign out inside the sign-in window and sign in again with the account your manager is expecting. You do not need a new link.'],
     ['OnlyFans is asking for a selfie or a video check', 'That is normal. Allow the camera when your computer asks, and hold your face up to it as OnlyFans instructs. Nothing is recorded by OnlyX.'],

@@ -16,12 +16,10 @@ app: click the link, sign in, see the success screen, close it.
    **Applications** folder.
 3. Drag **OnlyX Login** onto **Applications**. That is the install; you can then eject the disk image.
 4. Open it once from Applications or Launchpad. Opening it once is what lets a link start it later.
-5. **If macOS says it cannot check the app for malicious software:** press **Done** (not *Move to
-   Bin*), open **System Settings › Privacy & Security**, scroll to **Security**, and press **Open
-   Anyway** beside the OnlyX Login message, then confirm.
-   Two things people get wrong here: Control-click → Open **no longer works** — Apple disabled that
-   override in macOS Sequoia — and the *Open Anyway* button disappears about an hour after the
-   warning, so if it is gone, try opening the app again first.
+5. The current Mac release is signed and notarised by Apple and should open normally. If macOS says
+   it cannot check the app for malicious software, delete that copy and download the latest DMG
+   again from the OnlyX connect page. Do not bypass Gatekeeper for an official current build; tell
+   your manager if the fresh copy shows the same warning.
 
 **Windows** (10 or 11, 64-bit)
 
@@ -32,8 +30,9 @@ app: click the link, sign in, see the success screen, close it.
    message — then **Run anyway**. The button only appears after More info.
 4. It installs for your user in a few seconds and opens itself.
 
-Steps 5 and 3 are the unsigned-build path: once the installers are signed and notarised (see
-*Releasing*), neither warning appears.
+The Windows warning in step 3 remains until the Windows installer is signed. Mac releases from
+v1.3.1 are Developer ID-signed and Apple-notarised, so the old **Open Anyway** workaround is no
+longer part of the Mac install.
 
 Then click the connect link from your manager (it starts with `onlyx-connect://`). Your browser asks
 whether to open OnlyX Login — choose **Open**. The app opens on the OnlyFans sign-in page; sign in as
@@ -198,13 +197,13 @@ facts matter:
   unsigned or ad-hoc build, so unsigned mac builds skip updates entirely (`auto-update: skip
   (mac_unsigned)` in the log) rather than promise an update they cannot install. The app probes its
   own signature at launch, so the first signed release arms mac updates by itself — no code change.
-  Until then, mac users get new versions by reinstalling, exactly as before.
+  Unsigned mac releases through v1.3.0 need one manual reinstall to v1.3.1; signed releases update
+  automatically after that.
 - The mac build produces a **ZIP beside the DMG**: the ZIP is what Squirrel.Mac installs from
   (v1.0.0 shipped dmg-only, which auto-update could not have used); the DMG stays the human
   download. When publishing the draft, check dmg + zip + exe are all attached.
-- v1.0.0 predates the updater, so it never updates itself: the move to v1.0.1 is one last manual
-  reinstall per machine. Every version from v1.0.1 on updates on its own (Windows now; macOS once
-  builds are signed).
+- v1.0.0 predates the updater, so it never updates itself. Windows releases from v1.0.1 update on
+  their own; on macOS the updater becomes usable with the first signed release, v1.3.1.
 
 Downloads: release assets on a **private** repository need a GitHub login to download, so either
 keep this repository public (the app has no secrets in it) or copy each release's DMG/EXE to a

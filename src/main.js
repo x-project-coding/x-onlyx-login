@@ -852,10 +852,10 @@ const startUpdater = async () => {
   const signed = process.platform === 'darwin' ? await macCertSigned() : true;
   const verdict = updateCheckVerdict({ packaged, platform: process.platform, signed });
   if (!verdict.check) {
-    // 'mac_unsigned' is the expected answer until builds carry a Developer ID: Squirrel.Mac
-    // refuses to install onto an unsigned (or ad-hoc) build, so nothing is checked, downloaded or
-    // promised — no broken retry loop, no "update ready" it cannot honour. The probe reads the
-    // running binary, so the first signed release arms updates by itself, with no change here.
+    // 'mac_unsigned' is expected for an unpackaged or locally unsigned build: Squirrel.Mac refuses
+    // to install onto an unsigned (or ad-hoc) build, so nothing is checked, downloaded or promised
+    // — no broken retry loop, no "update ready" it cannot honour. The probe reads the running
+    // binary, so every Developer ID-signed release arms updates without a build flag.
     log(`auto-update: skip (${verdict.reason})`);
     return;
   }
