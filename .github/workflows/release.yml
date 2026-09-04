@@ -13,6 +13,9 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 permissions:
   contents: write
 jobs:
@@ -41,7 +44,7 @@ jobs:
       # An earlier version of this step passed `--config.mac.notarize=true` behind a shell
       # conditional, which was a no-op dressed up as the thing that turned notarization on.
       # Either credential set below works; the API key is the one Apple recommends.
-      - name: Build, sign, notarize and publish the DMG
+      - name: Build, sign and notarize the Mac artifacts
         # AN UNSET SECRET IS AN EMPTY STRING, NOT AN ABSENT ONE. `CSC_LINK: ${{ secrets.CSC_LINK }}`
         # with no certificate configured hands electron-builder `CSC_LINK=""`, which it reads as a
         # certificate PATH, resolves against the project directory, and then reports as
@@ -54,7 +57,7 @@ jobs:
             unset CSC_LINK CSC_KEY_PASSWORD
             export CSC_IDENTITY_AUTO_DISCOVERY=false
           fi
-          npx electron-builder --mac --publish always
+          npx electron-builder --mac --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # WITHOUT A CERTIFICATE, SIGNING MUST BE TURNED OFF EXPLICITLY. Left on, electron-builder
@@ -72,6 +75,17 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac-release
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            dist/OnlyX-Login-*-mac.dmg
+            dist/OnlyX-Login-*-mac.dmg.blockmap
+            dist/OnlyX-Login-*-mac.zip
+            dist/OnlyX-Login-*-mac.zip.blockmap
+            dist/latest-mac.yml
   windows:
     needs: test
     runs-on: windows-latest
@@ -82,9 +96,50 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Build, sign and publish the installer
-        run: npx electron-builder --win --publish always
+      - name: Build and sign the Windows installer
+        run: npx electron-builder --win --publish never
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
           WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-release
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            dist/OnlyX-Login-*-win.exe
+            dist/OnlyX-Login-*-win.exe.blockmap
+            dist/latest.yml
+  publish:
+    needs: [test, mac, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require a release tag
+        run: |
+          if [[ "$GITHUB_REF_TYPE" != "tag" || "$GITHUB_REF_NAME" != v* ]]; then
+            echo "Run this workflow against an existing v* tag."
+            exit 1
+          fi
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: '*-release'
+          path: release-assets
+          merge-multiple: true
+      # electron-builder publishes different files concurrently. When each publisher races to find
+      # a draft by tag, GitHub can receive two or three drafts for one version. Create the release
+      # exactly once, after both platform jobs have produced every artifact.
+      - name: Create one complete draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mapfile -t release_files < <(find release-assets -maxdepth 1 -type f -print | sort)
+          if (( ${#release_files[@]} == 0 )); then
+            echo "No release artifacts were downloaded."
+            exit 1
+          fi
+          gh release create "$GITHUB_REF_NAME" "${release_files[@]}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --draft \
+            --verify-tag \
+            --title "OnlyX Login ${GITHUB_REF_NAME#v}" \
+            --notes "Installers for macOS and Windows. The macOS app is Developer ID-signed and Apple-notarized."
