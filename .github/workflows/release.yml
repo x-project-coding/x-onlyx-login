@@ -13,6 +13,15 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      recover_mac:
+        description: 'Recover the signed Mac release as artifacts only (does not publish)'
+        type: boolean
+        default: false
+      resume_run_id:
+        description: 'Optional prior recovery run ID; wait on its saved Apple submission instead of resubmitting'
+        type: string
+        default: ''
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
@@ -30,6 +39,7 @@ jobs:
       - run: npm ci
       - run: npm test
   mac:
+    if: ${{ !inputs.recover_mac }}
     needs: test
     runs-on: macos-14
     steps:
@@ -87,6 +97,7 @@ jobs:
             dist/OnlyX-Login-*-mac.zip.blockmap
             dist/latest-mac.yml
   windows:
+    if: ${{ !inputs.recover_mac }}
     needs: test
     runs-on: windows-latest
     steps:
@@ -111,6 +122,7 @@ jobs:
             dist/OnlyX-Login-*-win.exe.blockmap
             dist/latest.yml
   publish:
+    if: ${{ !inputs.recover_mac }}
     needs: [test, mac, windows]
     runs-on: ubuntu-latest
     steps:
@@ -143,3 +155,76 @@ jobs:
             --verify-tag \
             --title "OnlyX Login ${GITHUB_REF_NAME#v}" \
             --notes "Installers for macOS and Windows. The macOS app is Developer ID-signed and Apple-notarized."
+  recover-mac:
+    if: ${{ inputs.recover_mac }}
+    needs: test
+    runs-on: macos-14
+    timeout-minutes: 55
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Recover a saved signed app and submission
+        if: ${{ inputs.resume_run_id != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RESUME_RUN_ID: ${{ inputs.resume_run_id }}
+        run: |
+          [[ "$RESUME_RUN_ID" =~ ^[0-9]+$ ]] || exit 1
+          gh run download "$RESUME_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+            --name mac-notary-recovery --dir recovery
+      - name: Sign the app without an unbounded notarization wait
+        if: ${{ inputs.resume_run_id == '' }}
+        timeout-minutes: 15
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+        run: bash scripts/recover-mac-release.sh build
+      - name: Submit the signed app to Apple
+        if: ${{ inputs.resume_run_id == '' }}
+        timeout-minutes: 5
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: bash scripts/recover-mac-release.sh submit
+      # Save BEFORE waiting: a delayed Apple response must not lose the signed app or submission ID.
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: mac-notary-recovery
+          path: recovery/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Wait for Apple, staple, and package only an accepted app
+        timeout-minutes: 25
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: bash scripts/recover-mac-release.sh finish
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: mac-notary-status
+          path: notary-status/
+          if-no-files-found: warn
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        with:
+          name: verified-mac-release
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            dist/OnlyX-Login-*-mac.dmg
+            dist/OnlyX-Login-*-mac.dmg.blockmap
+            dist/OnlyX-Login-*-mac.zip
+            dist/OnlyX-Login-*-mac.zip.blockmap
+            dist/latest-mac.yml
+            notary-status/verification.txt
