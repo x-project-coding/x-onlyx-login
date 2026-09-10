@@ -9,7 +9,7 @@ app: click the link, sign in, see the success screen, close it.
 > These steps are also **in the connect page itself** — the link your manager sends shows the ones
 > for your own computer, so nobody has to find this file.
 
-**macOS** (12 Monterey or newer, Intel or Apple silicon)
+**macOS** (13 Ventura or newer, Intel or Apple silicon)
 
 1. Download `OnlyX-Login-<version>-mac.dmg`.
 2. Double-click it in **Downloads**. A window opens with the OnlyX Login icon beside an
@@ -78,6 +78,8 @@ link. The link is one-time and expires in 15 minutes; once she has opened it she
 finish signing in. The account shows as connected in OnlyX as soon as the session is verified.
 
 ## For developers
+
+For a stalled Mac notarization, see [Mac release recovery](docs/MAC-RELEASE-RECOVERY.md).
 
 ```
 npm install
