@@ -1,7 +1,7 @@
 {
   "name": "onlyx-login",
   "productName": "Onlyx Login",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "description": "Sign in to OnlyFans for your Onlyx-managed account, on your own computer.",
   "main": "src/main.js",
   "type": "module",

@@ -154,11 +154,10 @@ first one's file shows a `window-open` line at the moment the handoff failed.
 
 ### Branding
 
-The app carries Onlyx's own identity, not an approximation: the accent is **`#00AEEF`** — the blue
-sampled from the OnlyFans mark, the same one `app.onlyx.ai` and the creator's connect page use — the
-mark is the product's ring on a near-black disc (`public/favicon.svg` in `x-onlyx-ui`), and the
-typeface is **Public Sans**, bundled rather than fetched so it renders before the app has a
-connection and no request goes to a third party.
+The app bundles the approved Onlyx outlined wordmark and mark in `src/ui/brand/`, copied unchanged
+from the workspace's `brand/onlyx/` assets. The **Login** descriptor stays separate from the logo.
+The accent is **`#00AEEF`**, and the typeface is **Public Sans**. All assets are bundled so they
+render offline without a third-party request.
 
 `test/e2e/branding.test.js` is the guard: a bundled font the page's CSP refuses on a `file://`
 origin falls back to Helvetica silently, and a packaged app resolves its assets out of an asar
