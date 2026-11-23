@@ -1,6 +1,6 @@
 /**
- * OnlyX Login — the desktop app a creator opens from a link to sign in to OnlyFans for her
- * OnlyX-managed account.
+ * Onlyx Login — the desktop app a creator opens from a link to sign in to OnlyFans for her
+ * Onlyx-managed account.
  *
  * The flow, end to end:
  *
@@ -10,7 +10,7 @@
  *                                                  or `tunnel: null`
  *                ->  loopback forwarder (tunnel.js) ONLY when a tunnel was offered: every byte of
  *                                                  the sign-in browser rides the account's own
- *                                                  proxy, via the OnlyX API. With `tunnel: null`
+ *                                                  proxy, via the Onlyx API. With `tunnel: null`
  *                                                  nothing is bound and the sign-in runs over the
  *                                                  machine's own network — see startConnect for
  *                                                  why that is the shipped default
@@ -521,7 +521,7 @@ const startConnect = async (claim) => {
       notice: {
         title: `Your Mac is blocking the ${kinds.join(' and ')}`,
         detail:
-          'Open System Settings › Privacy & Security › Camera, switch on OnlyX Login, then open your link again. macOS only asks once, so it will not prompt you a second time.',
+          'Open System Settings › Privacy & Security › Camera, switch on Onlyx Login, then open your link again. macOS only asks once, so it will not prompt you a second time.',
       },
     });
   };
@@ -774,7 +774,7 @@ const poll = async (r, token) => {
     if (stale(r)) return;
     if (err?.code === 'pass_invalid' || err?.status === 401) {
       // The pass ran out while the seat was still verifying. The import itself is safe on the
-      // server; OnlyX will show the outcome to her manager.
+      // server; Onlyx will show the outcome to her manager.
       clearInterval(r.pollTimer);
       r.pollTimer = null;
       r.done = true;
@@ -782,7 +782,7 @@ const poll = async (r, token) => {
         phase: 'error',
         username: r.account?.username ?? null,
         title: 'Still connecting',
-        detail: 'Your sign-in was received. OnlyX is finishing the connection in the background — your manager will see the result.',
+        detail: 'Your sign-in was received. Onlyx is finishing the connection in the background — your manager will see the result.',
       });
     }
     return;
@@ -962,7 +962,7 @@ const createWindow = () => {
     height: 860,
     minWidth: 720,
     minHeight: 520,
-    title: 'OnlyX Login',
+    title: 'Onlyx Login',
     backgroundColor: '#0b0b0f',   // the brand canvas, so the window never flashes a foreign colour
     // Shown from birth, deliberately. v1.0.0 used show:false + 'ready-to-show', but that event
     // belongs to the window's OWN webContents — which never loads anything here, all content being
@@ -1005,7 +1005,7 @@ const buildMenu = () => {
     { role: 'windowMenu' },
     {
       role: 'help',
-      submenu: [{ label: 'OnlyX Login help', click: () => header?.webContents.send('help') }],
+      submenu: [{ label: 'Onlyx Login help', click: () => header?.webContents.send('help') }],
     },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));

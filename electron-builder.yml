@@ -1,6 +1,6 @@
 appId: ai.onlyx.login
-productName: OnlyX Login
-copyright: OnlyX
+productName: Onlyx Login
+copyright: Onlyx
 directories:
   output: dist
   buildResources: build
@@ -11,7 +11,7 @@ asar: true
 # The link the app is opened from. Registered by the installer on Windows and by the bundle's
 # Info.plist on macOS, so a fresh install answers `onlyx-connect://` without ever being launched.
 protocols:
-  - name: OnlyX Connect
+  - name: Onlyx Connect
     schemes:
       - onlyx-connect
 mac:
@@ -55,7 +55,7 @@ nsis:
   perMachine: false
   allowToChangeInstallationDirectory: false
   deleteAppDataOnUninstall: true
-  shortcutName: OnlyX Login
+  shortcutName: Onlyx Login
 publish:
   provider: github
   owner: x-project-coding

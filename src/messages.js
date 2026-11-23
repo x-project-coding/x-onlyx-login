@@ -14,14 +14,14 @@ const OPEN_FAILURES = {
   claim_required: { title: 'This link is not complete', detail: ASK_FOR_A_NEW_LINK },
   account_unavailable: {
     title: 'This account cannot be connected right now',
-    detail: 'Your manager needs to check the account in OnlyX before you sign in.',
+    detail: 'Your manager needs to check the account in Onlyx before you sign in.',
   },
   no_egress: {
-    title: 'OnlyX is not ready for this account yet',
+    title: 'Onlyx is not ready for this account yet',
     detail: 'Please try the link again in a minute. If it keeps happening, tell your manager.',
   },
   worker_not_ready: {
-    title: 'OnlyX is not ready for this account yet',
+    title: 'Onlyx is not ready for this account yet',
     detail: 'Please try the link again in a minute. If it keeps happening, tell your manager.',
   },
 };
@@ -50,17 +50,17 @@ const IMPORT_FAILURES = {
   account_unavailable: OPEN_FAILURES.account_unavailable,
   already_imported: {
     title: 'You are already signed in',
-    detail: 'This link was used to sign in already. If OnlyX still shows the account as disconnected, ask for a new link.',
+    detail: 'This link was used to sign in already. If Onlyx still shows the account as disconnected, ask for a new link.',
   },
 };
 
 const TRANSPORT = {
   unreachable: {
-    title: 'Cannot reach OnlyX',
+    title: 'Cannot reach Onlyx',
     detail: 'Check your internet connection and open the link again.',
   },
   timeout: {
-    title: 'OnlyX is not answering',
+    title: 'Onlyx is not answering',
     detail: 'Check your internet connection and open the link again.',
   },
 };
@@ -80,11 +80,11 @@ export const TUNNEL_CLOSE = {
 const TUNNEL_FAILURES = {
   proxy_auth: {
     title: 'The secure connection was refused',
-    detail: 'OnlyX could not open the connection for this account. Tell your manager — nothing is wrong on your side.',
+    detail: 'Onlyx could not open the connection for this account. Tell your manager — nothing is wrong on your side.',
   },
   proxy_blocked: {
     title: 'The secure connection was blocked',
-    detail: 'OnlyX could not open the connection for this account. Tell your manager — nothing is wrong on your side.',
+    detail: 'Onlyx could not open the connection for this account. Tell your manager — nothing is wrong on your side.',
   },
   proxy_error: {
     title: 'The secure connection dropped',
@@ -115,8 +115,8 @@ export const messageForTunnel = (reason) => TUNNEL_FAILURES[reason] ?? GENERIC;
 
 /** A seat that judged the import and refused it: the API's statusReason, made readable. */
 export const messageForFailedConnect = (statusReason) => ({
-  title: 'OnlyX could not use this sign-in',
+  title: 'Onlyx could not use this sign-in',
   detail: statusReason
-    ? `OnlyFans did not accept the session on OnlyX (${statusReason}). Open a new link and sign in again.`
-    : 'OnlyFans did not accept the session on OnlyX. Open a new link and sign in again.',
+    ? `OnlyFans did not accept the session on Onlyx (${statusReason}). Open a new link and sign in again.`
+    : 'OnlyFans did not accept the session on Onlyx. Open a new link and sign in again.',
 });

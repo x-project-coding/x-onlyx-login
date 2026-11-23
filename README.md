@@ -130,7 +130,7 @@ token-shaped runs in console text are masked.
 environment), then from Terminal:
 
 ```
-ONLYX_LOGIN_DIAG=1 "/Applications/OnlyX Login.app/Contents/MacOS/OnlyX Login" \
+ONLYX_LOGIN_DIAG=1 "/Applications/Onlyx Login.app/Contents/MacOS/Onlyx Login" \
   "onlyx-connect://open?c=<the claim from the link>"
 ```
 
@@ -138,11 +138,11 @@ ONLYX_LOGIN_DIAG=1 "/Applications/OnlyX Login.app/Contents/MacOS/OnlyX Login" \
 
 ```
 $env:ONLYX_LOGIN_DIAG=1
-& "$env:LOCALAPPDATA\Programs\onlyx-login\OnlyX Login.exe" "onlyx-connect://open?c=<claim>"
+& "$env:LOCALAPPDATA\Programs\onlyx-login\Onlyx Login.exe" "onlyx-connect://open?c=<claim>"
 ```
 
 The app prints `diagnostics: recording this sign-in to <path>` on startup; that is the file to send
-(macOS puts it in `~/Library/Logs/OnlyX Login/`). Reproduce the failure once, then close the app and
+(macOS puts it in `~/Library/Logs/Onlyx Login/`). Reproduce the failure once, then close the app and
 send the file. Setting the variable to an absolute path writes there instead.
 
 `ONLYX_LOGIN_POPUPS=allow` is the second switch, and it is a **test**, not a fix. By default a

@@ -153,7 +153,7 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --draft \
             --verify-tag \
-            --title "OnlyX Login ${GITHUB_REF_NAME#v}" \
+            --title "Onlyx Login ${GITHUB_REF_NAME#v}" \
             --notes "Installers for macOS and Windows. The macOS app is Developer ID-signed and Apple-notarized."
   recover-mac:
     if: ${{ inputs.recover_mac }}

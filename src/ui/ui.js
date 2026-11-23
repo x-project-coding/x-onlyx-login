@@ -17,7 +17,7 @@
   const renderFull = ({ icon, title, text, detail, actions, fine }) => {
     body.dataset.mode = 'full';
     const iconEl = $('full-icon');
-    // 'mark' is the OnlyX ring itself — used on the idle screen, where the product is what to show.
+    // 'mark' is the Onlyx ring itself — used on the idle screen, where the product is what to show.
     // Only the className changes per state; the slot's size and centring live on #full-icon in the
     // CSS, so no kind can lose them the way v1.0.1's `mark lg` lost `.icon`'s margin.
     iconEl.className = icon.kind === 'mark' ? 'mark lg' : `icon ${icon.kind}`;
@@ -47,18 +47,18 @@
    *
    * The Help button used to open `onlyx.ai/connect-app`, which 404s — so the one button a stuck
    * person presses took her to a missing page. Everything below is answerable offline, because
-   * "cannot reach OnlyX" is one of the states she may be in when she presses it.
+   * "cannot reach Onlyx" is one of the states she may be in when she presses it.
    */
   const HELP = [
-    ['Nothing happened when I clicked my link', 'Open OnlyX Login once from your Applications folder (Mac) or Start menu (Windows), then click the link again. Your browser will ask whether to open OnlyX Login — choose Open.'],
+    ['Nothing happened when I clicked my link', 'Open Onlyx Login once from your Applications folder (Mac) or Start menu (Windows), then click the link again. Your browser will ask whether to open Onlyx Login — choose Open.'],
     // Mac releases are Developer ID-signed and notarised from v1.3.1. A Gatekeeper warning on an
     // official current build therefore means the copy is old, incomplete or not the release we
     // produced; do not teach a creator to override that signal. Windows remains unsigned for now.
-    ['My computer shows a warning the first time I open the app', 'Mac: delete that copy and install the latest version from the OnlyX connect link your manager sent you. The current Mac release is signed and checked by Apple, so do not use Open Anyway for a fresh official download — tell your manager if it still warns. Windows: click “More info”, then “Run anyway”.'],
+    ['My computer shows a warning the first time I open the app', 'Mac: delete that copy and install the latest version from the Onlyx connect link your manager sent you. The current Mac release is signed and checked by Apple, so do not use Open Anyway for a fresh official download — tell your manager if it still warns. Windows: click “More info”, then “Run anyway”.'],
     ['My link says it has expired', 'Links work once, and for 15 minutes. Ask your manager to send a new one — it takes them a second.'],
     ['I signed in to the wrong account', 'Sign out inside the sign-in window and sign in again with the account your manager is expecting. You do not need a new link.'],
-    ['OnlyFans is asking for a selfie or a video check', 'That is normal. Allow the camera when your computer asks, and hold your face up to it as OnlyFans instructs. Nothing is recorded by OnlyX.'],
-    ['It says it cannot reach OnlyX', 'Check your internet connection and click the link again. If it keeps happening, tell your manager.'],
+    ['OnlyFans is asking for a selfie or a video check', 'That is normal. Allow the camera when your computer asks, and hold your face up to it as OnlyFans instructs. Nothing is recorded by Onlyx.'],
+    ['It says it cannot reach Onlyx', 'Check your internet connection and click the link again. If it keeps happening, tell your manager.'],
   ];
 
   let helpOpen = false;
@@ -140,12 +140,12 @@
       case 'opening':
         return renderFull({ icon: { kind: 'spin' }, title: 'Opening your link…', text: 'Setting up a private connection for your account.', actions: [] });
       case 'captured':
-        return renderFull({ icon: { kind: 'spin' }, title: 'Signed in', text: 'Sending your sign-in to OnlyX…', actions: [] });
+        return renderFull({ icon: { kind: 'spin' }, title: 'Signed in', text: 'Sending your sign-in to Onlyx…', actions: [] });
       case 'verifying':
         return renderFull({
           icon: { kind: 'spin' },
           title: 'Connecting your account…',
-          text: `OnlyX is taking over the session for ${who}. This usually takes under a minute.`,
+          text: `Onlyx is taking over the session for ${who}. This usually takes under a minute.`,
           detail: 'Please keep this window open.',
           actions: [],
         });
@@ -153,7 +153,7 @@
         return renderFull({
           icon: { kind: 'ok', glyph: '✓' },
           title: 'Connected',
-          text: `${who} is now connected to OnlyX. You can close this window.`,
+          text: `${who} is now connected to Onlyx. You can close this window.`,
           actions: [button('Close', () => window.onlyx.close(), true)],
         });
       case 'error':
@@ -169,7 +169,7 @@
       case 'update-downloading':
         return renderFull({
           icon: { kind: 'spin' },
-          title: 'Updating OnlyX Login',
+          title: 'Updating Onlyx Login',
           text: 'A newer version is downloading in the background. Your connect link works as normal — click it any time.',
           actions: [],
           fine: helpLine(),
@@ -193,8 +193,8 @@
         return renderFull({
           icon: { kind: 'mark' },
           title: 'Waiting for your link',
-          text: 'This app connects your OnlyFans account to OnlyX. Open the chat where your manager sent your connect link and click the link — your sign-in starts right here, by itself.',
-          detail: 'No link? Ask your manager for one. You can close this window until then: OnlyX Login only needs to stay installed, not open.',
+          text: 'This app connects your OnlyFans account to Onlyx. Open the chat where your manager sent your connect link and click the link — your sign-in starts right here, by itself.',
+          detail: 'No link? Ask your manager for one. You can close this window until then: Onlyx Login only needs to stay installed, not open.',
           actions: [],
           fine: helpLine(),
         });
