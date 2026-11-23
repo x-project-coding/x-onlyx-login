@@ -25,7 +25,7 @@
  * use. The only thing wrong with it is the USER-AGENT STRING, in two ways Electron adds and no
  * browser has:
  *
- *   ... (KHTML, like Gecko) OnlyX Login/1.2.0 Chrome/152.0.7977.65 Electron/44.1.1 Safari/537.36
+ *   ... (KHTML, like Gecko) Onlyx Login/1.2.0 Chrome/152.0.7977.65 Electron/44.1.1 Safari/537.36
  *                           ^^^^^^^^^^^^^^^^^ the app                ^^^^^^^^^^^^^^^^ the runtime
  *                                             and the version is UNREDUCED — every real Chrome
  *                                             froze it at <major>.0.0.0 years ago
@@ -79,7 +79,7 @@ export const cleanUserAgent = (userAgent) => {
   if (!/Chrome\/\d/.test(ua)) return null;
   const cleaned = ua
     // The app's own product token. Matched as "everything up to Chrome/" rather than as
-    // `Name/Version`, because `app.getName()` is "OnlyX Login" and a space would break a token
+    // `Name/Version`, because `app.getName()` is "Onlyx Login" and a space would break a token
     // match — which is the kind of miss that ships a UA still carrying the app's name.
     .replace(/(\(KHTML, like Gecko\)\s+)[\s\S]*?(?=Chrome\/)/, '$1')
     .replace(/\s+Electron\/\S+/g, '')

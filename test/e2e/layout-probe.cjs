@@ -2,7 +2,7 @@
 // the numbers to ONLYX_LAYOUT_REPORT (plus a PNG per state to ONLYX_LAYOUT_SHOTS, when set, so a
 // human can look at what shipped). A test fixture, never shipped.
 //
-// Why geometry and not content: v1.0.1's idle screen had every string right and the OnlyX ring
+// Why geometry and not content: v1.0.1's idle screen had every string right and the Onlyx ring
 // hard against the card's LEFT edge — ui.js swaps the icon element's whole className per state,
 // and the idle `mark lg` had dropped `.icon`, the class the centring margin lived on. Content
 // probes cannot see that; only a rect can.

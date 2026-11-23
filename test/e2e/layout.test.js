@@ -4,7 +4,7 @@
  *
  * ui.js swaps `#full-icon`'s whole className per state, and the idle screen's `mark lg` did not
  * keep `.icon` — the class the centring margin lived on — so the installed app greeted a creator
- * with the OnlyX ring hard against the card's LEFT edge and zero gap to the title. Every content
+ * with the Onlyx ring hard against the card's LEFT edge and zero gap to the title. Every content
  * probe passed: the strings were all there, just in the wrong place. So this test asserts rects,
  * not strings: for every className the renderer can set (idle's mark, the spinner, ok, bad, and
  * the help panel's bare `.icon`) the icon's horizontal centre must BE the card's, with its

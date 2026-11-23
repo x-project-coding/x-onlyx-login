@@ -2,7 +2,7 @@
 # Recovery only: never publishes. No native app changes and no Gatekeeper bypass.
 set -euo pipefail
 
-app='dist/mac-universal/OnlyX Login.app'
+app='dist/mac-universal/Onlyx Login.app'
 expected_team='Y5NUN99S3X'
 
 verify_signature() {

@@ -1,6 +1,6 @@
 /**
  * The loopback forwarder: an HTTP CONNECT proxy on 127.0.0.1 that turns every stream the sign-in
- * browser opens into one WebSocket to the OnlyX API, which dials onward through the account's own
+ * browser opens into one WebSocket to the Onlyx API, which dials onward through the account's own
  * proxy.
  *
  *   sign-in Chromium --CONNECT host:443--> here --wss--> of-api.onlyx.ai --CONNECT--> proxy --> host
@@ -163,7 +163,7 @@ export const startForwarder = async ({
     }
     if (request.headers['proxy-authorization'] !== expectedCredential) {
       stats.refused += 1;
-      return reply(client, 407, 'Proxy Authentication Required', 'Proxy-Authenticate: Basic realm="OnlyX Login"\r\n');
+      return reply(client, 407, 'Proxy Authentication Required', 'Proxy-Authenticate: Basic realm="Onlyx Login"\r\n');
     }
     const authority = parseAuthority(request.target);
     if (!authority || !allowedPorts.includes(authority.port)) {

@@ -36,7 +36,7 @@ const NAMED_UA =
   'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) OnlyXLogin/1.1.0 Chrome/152.0.7977.65 Electron/44.1.1 Safari/537.36';
 /** And the same shape with a SPACE in the product name, which `productName` would give it. */
 const SPACED_UA =
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) OnlyX Login/1.2.0 Chrome/152.0.7977.65 Electron/44.1.1 Safari/537.36';
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Onlyx Login/1.2.0 Chrome/152.0.7977.65 Electron/44.1.1 Safari/537.36';
 
 test('the build declares exactly the capability the server gates the honest identity on', () => {
   assert.deepEqual(APP_CAPS, ['nativeIdentity']);
@@ -59,14 +59,14 @@ test('cleaning removes the app, the runtime, and the version no browser sends', 
     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36',
   );
   // The app's own name, spaces and all. Matched as "everything up to Chrome/" precisely because
-  // `OnlyX Login/1.2.0` is not one whitespace-free token and a token match would leave it behind.
+  // `Onlyx Login/1.2.0` is not one whitespace-free token and a token match would leave it behind.
   assert.equal(
     cleanUserAgent(SPACED_UA),
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36',
   );
   for (const cleaned of [cleanUserAgent(ELECTRON_UA), cleanUserAgent(NAMED_UA), cleanUserAgent(SPACED_UA)]) {
     assert.ok(!/Electron/i.test(cleaned), 'the Electron token survived');
-    assert.ok(!/OnlyX/i.test(cleaned), 'the app name survived');
+    assert.ok(!/Onlyx/i.test(cleaned), 'the app name survived');
     assert.ok(!/ {2}/.test(cleaned), 'cleaning left a double space, which is itself a tell');
     // The build number belongs in Sec-CH-UA-Full-Version-List, where the engine still puts it —
     // not in the User-Agent, where every browser has sent <major>.0.0.0 since the UA reduction.

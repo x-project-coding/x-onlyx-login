@@ -161,7 +161,7 @@ test('told `source: native`, the app presents this machine — no pins, no borro
   assert.ok(wire.length >= 2, 'the fake saw too few requests to judge');
   const ua = wire.at(-1).headers['user-agent'];
   assert.ok(!/Electron\//.test(ua), `the wire User-Agent names Electron: ${ua}`);
-  assert.ok(!/OnlyX/i.test(ua), `the wire User-Agent names the app: ${ua}`);
+  assert.ok(!/Onlyx/i.test(ua), `the wire User-Agent names the app: ${ua}`);
   assert.equal(ua, probe.userAgent, 'the page and the wire disagree about which browser this is');
   // The session UA reaches every request, the page AND (the half a page override never does) any
   // service worker — so there is one string, not two.

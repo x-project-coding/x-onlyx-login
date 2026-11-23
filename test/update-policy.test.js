@@ -6,26 +6,26 @@ import { isCertSigned, mayPaintUpdate, updateCheckVerdict, updateInstallVerdict 
 // Real codesign -dvv shapes, abridged: a Developer ID chain, the ad-hoc signature electron-builder
 // applies when no identity is configured, and the message an unsigned binary fails with.
 const CODESIGN_DEV_ID = [
-  'Executable=/Applications/OnlyX Login.app/Contents/MacOS/OnlyX Login',
+  'Executable=/Applications/Onlyx Login.app/Contents/MacOS/Onlyx Login',
   'Identifier=ai.onlyx.login',
   'Format=app bundle with Mach-O universal (x86_64 arm64)',
   'CodeDirectory v=20500 size=1345 flags=0x10000(runtime) hashes=31+7 location=embedded',
   'Signature size=8996',
-  'Authority=Developer ID Application: OnlyX LLC (ABCDE12345)',
+  'Authority=Developer ID Application: Onlyx LLC (ABCDE12345)',
   'Authority=Developer ID Certification Authority',
   'Authority=Apple Root CA',
   'TeamIdentifier=ABCDE12345',
 ].join('\n');
 
 const CODESIGN_ADHOC = [
-  'Executable=/Applications/OnlyX Login.app/Contents/MacOS/OnlyX Login',
+  'Executable=/Applications/Onlyx Login.app/Contents/MacOS/Onlyx Login',
   'Identifier=ai.onlyx.login',
   'CodeDirectory v=20400 size=594 flags=0x2(adhoc) hashes=13+7 location=embedded',
   'Signature=adhoc',
   'TeamIdentifier=not set',
 ].join('\n');
 
-const CODESIGN_UNSIGNED = '/Applications/OnlyX Login.app/Contents/MacOS/OnlyX Login: code object is not signed at all';
+const CODESIGN_UNSIGNED = '/Applications/Onlyx Login.app/Contents/MacOS/Onlyx Login: code object is not signed at all';
 
 // ---------------------------------------------------------------------------------------------
 // updateCheckVerdict
@@ -69,7 +69,7 @@ test('"Authority=" inside an echoed path is not a certificate', () => {
   // codesign prints the executable path verbatim; a path crafted to contain the marker must not
   // arm updates on an ad-hoc build.
   const echoed = [
-    'Executable=/tmp/apps/Authority=Developer ID Application/OnlyX Login',
+    'Executable=/tmp/apps/Authority=Developer ID Application/Onlyx Login',
     'Signature=adhoc',
     'TeamIdentifier=not set',
   ].join('\n');

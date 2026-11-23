@@ -20,7 +20,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const appDir = path.resolve(fileURLToPath(import.meta.url), '../../..');
 
-/** OnlyX's accent, sampled from the OnlyFans mark — the same value app.onlyx.ai uses. */
+/** Onlyx's accent, sampled from the OnlyFans mark — the same value app.onlyx.ai uses. */
 const BRAND = '#00AEEF';
 
 test('the UI page loads the bundled typeface and the brand accent', () => {
@@ -40,8 +40,8 @@ test('the UI page loads the bundled typeface and the brand accent', () => {
   // or a bad path fails here rather than silently falling back to the system sans.
   assert.equal(report.fontLoaded, true, `Public Sans did not load: ${JSON.stringify(report)}`);
   assert.match(report.bodyFont, /Public Sans/, 'the body is not set in the product typeface');
-  assert.equal(report.brand.toUpperCase(), BRAND, 'the accent is not the OnlyX brand blue');
+  assert.equal(report.brand.toUpperCase(), BRAND, 'the accent is not the Onlyx brand blue');
   // The mark and the wordmark are what a creator recognises the app by.
-  assert.equal(report.hasMark, true, 'the OnlyX mark is not rendered');
-  assert.match(report.title, /OnlyX Login/);
+  assert.equal(report.hasMark, true, 'the Onlyx mark is not rendered');
+  assert.match(report.title, /Onlyx Login/);
 });

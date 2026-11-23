@@ -1,5 +1,5 @@
 /**
- * The three servers a real OnlyX Login run talks to, faked in-process so the whole flow — open a
+ * The three servers a real Onlyx Login run talks to, faked in-process so the whole flow — open a
  * pass, tunnel a TLS connection through, sign in, capture, import, poll to connected — can be driven
  * end to end against the real, packaged-shaped app.
  *
@@ -194,7 +194,7 @@ export const startFakeTunnel = async ({ onlyfansPort, expectToken }) => {
  * THE VERDICT DIALS. `/connect-app/status` answers with a `ConnectState`, and the real one
  * (connect-app.service.ts) has FOUR values, not three: `awaiting_session | verifying | connected |
  * failed`. For a long time this fake could only ever work its way to `connected`, so the app's
- * "OnlyX could not use this sign-in" screen and its expired-pass screen were dead code in every
+ * "Onlyx could not use this sign-in" screen and its expired-pass screen were dead code in every
  * end-to-end run, and an app that painted success on its own count of polls was indistinguishable
  * from one that waited for the seat.
  *

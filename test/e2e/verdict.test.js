@@ -9,7 +9,7 @@
  *                      concedes on poll four, the two are the same run.
  *   it is a refusal    `state: 'failed'` with a `statusReason` — a real ConnectState value
  *                      (connect-app.service.ts) that this suite could not express until now, which
- *                      left the "OnlyX could not use this sign-in" screen dead code in every
+ *                      left the "Onlyx could not use this sign-in" screen dead code in every
  *                      end-to-end run.
  *   the pass runs out  401 on a bearer that is CORRECT. The app never sends a wrong one, so the
  *                      fake's wrong-bearer 401 could never reach the branch that exists for this.
@@ -169,7 +169,7 @@ test('while the cloud keeps saying `verifying` the app shows no success — and 
     `a 'failed' verdict left the app on ${readStates(stateFile).at(-1)?.phase ?? 'nothing'} — the creator is watching `
       + `a spinner that will never stop.\n--- app logs ---\n${logs.join('').slice(-4000)}`,
   );
-  assert.equal(refused.title, 'OnlyX could not use this sign-in');
+  assert.equal(refused.title, 'Onlyx could not use this sign-in');
   assert.match(
     refused.detail,
     new RegExp(REASON),
