@@ -29,11 +29,19 @@ app.whenReady().then(async () => {
       await document.fonts.ready;
       const cs = getComputedStyle(document.body);
       const mark = document.querySelector('.mark');
+      const background = mark && getComputedStyle(mark).backgroundImage;
+      const markUrl = background?.startsWith('url("') ? background.slice(5, -2) : null;
+      const markImage = new Image();
+      if (markUrl) { markImage.src = markUrl; await markImage.decode(); }
+      const logos = [...document.querySelectorAll('.brand img')];
+      await Promise.all(logos.map(logo => logo.decode()));
       return {
         fontLoaded: document.fonts.check('16px "Public Sans"'),
         bodyFont: cs.fontFamily,
         brand: getComputedStyle(document.documentElement).getPropertyValue('--brand').trim(),
-        hasMark: !!mark && getComputedStyle(mark).boxShadow !== 'none',
+        hasMark: markImage.naturalWidth > 0,
+        logosLoaded: logos.length === 2 && logos.every(logo => logo.naturalWidth > 0 && logo.alt === 'Onlyx'),
+        descriptors: [...document.querySelectorAll('.brand .product')].map(el => el.textContent),
         title: document.title,
       };
     })()

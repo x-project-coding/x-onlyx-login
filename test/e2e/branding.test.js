@@ -43,5 +43,7 @@ test('the UI page loads the bundled typeface and the brand accent', () => {
   assert.equal(report.brand.toUpperCase(), BRAND, 'the accent is not the Onlyx brand blue');
   // The mark and the wordmark are what a creator recognises the app by.
   assert.equal(report.hasMark, true, 'the Onlyx mark is not rendered');
+  assert.equal(report.logosLoaded, true, 'the approved wordmark did not load in both app layouts');
+  assert.deepEqual(report.descriptors, ['Login', 'Login']);
   assert.match(report.title, /Onlyx Login/);
 });
