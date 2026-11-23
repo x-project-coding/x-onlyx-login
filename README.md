@@ -1,7 +1,7 @@
-# OnlyX Login
+# Onlyx Login
 
 A small desktop app for macOS and Windows that a creator opens **from a link** to sign in to
-OnlyFans for her OnlyX-managed account. There is nothing to set up and no account to create in the
+OnlyFans for her Onlyx-managed account. There is nothing to set up and no account to create in the
 app: click the link, sign in, see the success screen, close it.
 
 ## For creators — installing it
@@ -12,13 +12,13 @@ app: click the link, sign in, see the success screen, close it.
 **macOS** (13 Ventura or newer, Intel or Apple silicon)
 
 1. Download `OnlyX-Login-<version>-mac.dmg`.
-2. Double-click it in **Downloads**. A window opens with the OnlyX Login icon beside an
+2. Double-click it in **Downloads**. A window opens with the Onlyx Login icon beside an
    **Applications** folder.
-3. Drag **OnlyX Login** onto **Applications**. That is the install; you can then eject the disk image.
+3. Drag **Onlyx Login** onto **Applications**. That is the install; you can then eject the disk image.
 4. Open it once from Applications or Launchpad. Opening it once is what lets a link start it later.
 5. The current Mac release is signed and notarised by Apple and should open normally. If macOS says
    it cannot check the app for malicious software, delete that copy and download the latest DMG
-   again from the OnlyX connect page. Do not bypass Gatekeeper for an official current build; tell
+   again from the Onlyx connect page. Do not bypass Gatekeeper for an official current build; tell
    your manager if the fresh copy shows the same warning.
 
 **Windows** (10 or 11, 64-bit)
@@ -35,7 +35,7 @@ v1.3.1 are Developer ID-signed and Apple-notarised, so the old **Open Anyway** w
 longer part of the Mac install.
 
 Then click the connect link from your manager (it starts with `onlyx-connect://`). Your browser asks
-whether to open OnlyX Login — choose **Open**. The app opens on the OnlyFans sign-in page; sign in as
+whether to open Onlyx Login — choose **Open**. The app opens on the OnlyFans sign-in page; sign in as
 usual — password, email code, and the camera check if OnlyFans asks for one — and wait for the
 **Connected** screen.
 
@@ -49,20 +49,20 @@ depend on, and it answers without a connection.
 ## What the app does, and does not do
 
 - The sign-in happens in a private browser window inside the app. **Which browser it claims to be is
-  the OnlyX server's decision**, and the app follows it with no update on your side:
+  the Onlyx server's decision**, and the app follows it with no update on your side:
   - *your own computer* (the default) — the window presents the machine it is running on, and
     nothing else. It states no invented processor count, no invented graphics card and no invented
-    version. Painting OnlyX's server identity over a real laptop is what produced a captcha on
+    version. Painting Onlyx's server identity over a real laptop is what produced a captcha on
     every sign-in, because the two never agreed.
-  - *the OnlyX identity* — the older behaviour, where the window wears the browser OnlyX uses for
+  - *the Onlyx identity* — the older behaviour, where the window wears the browser Onlyx uses for
     the account afterwards, so OnlyFans sees one device across both.
 - The sign-in normally uses **your own internet connection**, like any browser on your computer.
   OnlyFans' identity check pairs your computer with your phone and insists both are on the same
-  network, which only your own connection can satisfy. (The OnlyX server can switch the app back to
+  network, which only your own connection can satisfy. (The Onlyx server can switch the app back to
   routing the sign-in through the account's own connection — the app follows whatever the server
   offers, so this needs no update on your side.)
-- When OnlyFans confirms the sign-in, the app hands the session to OnlyX and closes the window.
-  OnlyX then verifies it works on its side; the app shows **Connected** when it does.
+- When OnlyFans confirms the sign-in, the app hands the session to Onlyx and closes the window.
+  Onlyx then verifies it works on its side; the app shows **Connected** when it does.
 - The app keeps **nothing**: the browser window is in memory and is discarded with the run; no
   password, cookie or file is stored on the computer, and the network credentials for the
   connection never reach the computer at all.
@@ -73,9 +73,9 @@ depend on, and it answers without a connection.
 
 ## For managers
 
-In OnlyX, open the account, choose **Connect → Connect with the app**, and send the creator the
+In Onlyx, open the account, choose **Connect → Connect with the app**, and send the creator the
 link. The link is one-time and expires in 15 minutes; once she has opened it she has 45 minutes to
-finish signing in. The account shows as connected in OnlyX as soon as the session is verified.
+finish signing in. The account shows as connected in Onlyx as soon as the session is verified.
 
 ## For developers
 
@@ -154,7 +154,7 @@ first one's file shows a `window-open` line at the moment the handoff failed.
 
 ### Branding
 
-The app carries OnlyX's own identity, not an approximation: the accent is **`#00AEEF`** — the blue
+The app carries Onlyx's own identity, not an approximation: the accent is **`#00AEEF`** — the blue
 sampled from the OnlyFans mark, the same one `app.onlyx.ai` and the creator's connect page use — the
 mark is the product's ring on a near-black disc (`public/favicon.svg` in `x-onlyx-ui`), and the
 typeface is **Public Sans**, bundled rather than fetched so it renders before the app has a
@@ -209,4 +209,4 @@ facts matter:
 
 Downloads: release assets on a **private** repository need a GitHub login to download, so either
 keep this repository public (the app has no secrets in it) or copy each release's DMG/EXE to a
-public download location and point the OnlyX connect page at it.
+public download location and point the Onlyx connect page at it.
